@@ -1,0 +1,32 @@
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+.env.local
+.env.*
+
+# Node / JS dependencies
+node_modules/
+dist/
+build/
+.npm
+.eslintcache
+
+# Python cache and files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Workspace data
+.gemini/
+antigravity-ide/
+*.log

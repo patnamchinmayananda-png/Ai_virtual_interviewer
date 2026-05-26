@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base Resets ─── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-950 text-white antialiased;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ─── Scrollbar Styling ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-slate-900;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-600 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-500;
+}
+
+/* ─── Custom Glassmorphism Card ─── */
+@layer components {
+  .glass-card {
+    @apply bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent;
+  }
+
+  .btn-primary {
+    @apply px-6 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg font-semibold
+           hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-300
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-2.5 border border-slate-600 rounded-lg font-semibold text-slate-300
+           hover:border-slate-400 hover:text-white transition-all duration-200;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2.5 bg-slate-700/30 border border-slate-600 rounded-lg
+           focus:border-blue-500 focus:outline-none transition-colors text-white
+           placeholder-slate-500;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400
+           hover:text-white hover:bg-slate-800 transition-all text-sm font-medium;
+  }
+
+  .nav-link.active {
+    @apply text-white bg-slate-800;
+  }
+
+  .score-badge {
+    @apply font-bold;
+  }
+
+  .score-badge.good { @apply text-green-400; }
+  .score-badge.medium { @apply text-yellow-400; }
+  .score-badge.poor { @apply text-red-400; }
+}
+
+/* ─── Animations ─── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.2); opacity: 0; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ─── Code Editor Styles ─── */
+.code-editor {
+  @apply font-mono text-sm bg-slate-900 border border-slate-700 rounded-lg p-4;
+  tab-size: 2;
+}
+
+/* ─── Voice Recording Indicator ─── */
+.recording-pulse {
+  animation: pulse-ring 1s ease-out infinite;
+  @apply absolute inset-0 rounded-full border-2 border-red-400;
+}
+
+/* ─── Custom Range Slider ─── */
+input[type="range"] {
+  @apply accent-blue-500;
+}
+
+/* ─── Select Dropdown ─── */
+select option {
+  @apply bg-slate-800 text-white;
+}
+
+/* ─── Focus Visible ─── */
+:focus-visible {
+  @apply outline-none ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-950;
+}
+
+/* ─── Prose for Report Content ─── */
+.report-prose {
+  @apply text-slate-300 leading-relaxed;
+}
+
+.report-prose strong {
+  @apply text-white font-semibold;
+}
