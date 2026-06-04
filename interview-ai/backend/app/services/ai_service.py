@@ -712,6 +712,24 @@ class AIService:
         # Keep unique achievements
         achievements = list(dict.fromkeys(achievements))
 
+        # Check if the document has absolutely no matching keywords or achievements
+        if total_skills_count == 0 and len(achievements) == 0:
+            return {
+                "score": 0.0,
+                "skills": {},
+                "achievements": [],
+                "strengths": ["Basic document text parsing was successful."],
+                "weaknesses": ["No developer technical skills or accomplishments detected. This does not look like a software/technical resume."],
+                "improvements": ["Please upload a valid developer resume containing key technologies (e.g. Python, React) and projects."],
+                "compatibility": {
+                    "software_engineer": 0.0,
+                    "ai_engineer": 0.0,
+                    "frontend_developer": 0.0,
+                    "backend_developer": 0.0,
+                    "data_analyst": 0.0
+                }
+            }
+
         # 3. Compute role compatibilities
         # Define skill anchors for each target job role
         role_anchors = {
