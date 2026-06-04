@@ -16,18 +16,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 router = APIRouter()
 
-fake_users_db = {
-    "demo@example.com": {
-        "email": "demo@example.com",
-        "full_name": "Demo User",
-        "hashed_password": pwd_context.hash("password123"),
-        "bio": None,
-        "skills": ["Python", "JavaScript"],
-        "target_role": "Software Engineer",
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
-    }
-}
+from app.utils.db import fake_users_db
 
 class UserCreate(BaseModel):
     email: str

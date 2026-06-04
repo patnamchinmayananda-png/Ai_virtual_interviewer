@@ -3,8 +3,8 @@ from typing import List, Dict
 from fastapi import APIRouter, HTTPException, Depends, status
 
 from app.models import User, UserUpdate, PerformanceMetrics
-from app.routes.auth import get_current_user, fake_users_db
-from app.utils.db import fake_reports_db, fake_sessions_db
+from app.routes.auth import get_current_user
+from app.utils.db import fake_reports_db, fake_sessions_db, fake_users_db
 
 router = APIRouter()
 
