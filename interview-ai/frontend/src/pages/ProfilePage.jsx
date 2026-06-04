@@ -72,35 +72,35 @@ export default function ProfilePage() {
   const initials = displayName.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white pb-16">
+    <div className="min-h-screen bg-background text-text-primary pb-16">
       {/* Top Bar */}
-      <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 py-4 flex items-center gap-4 sticky top-0 z-10">
-        <Link to="/dashboard" className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors">
+      <div className="border-b border-border bg-surface/80 backdrop-blur px-6 py-4 flex items-center gap-4 sticky top-0 z-10">
+        <Link to="/dashboard" className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary text-sm font-medium transition-colors">
           <ChevronLeft size={16} /> Dashboard
         </Link>
-        <span className="text-slate-700">|</span>
-        <span className="text-sm font-semibold text-white">My Profile</span>
+        <span className="text-border">|</span>
+        <span className="text-sm font-bold tracking-tight text-text-primary">My Profile</span>
       </div>
 
-      <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+      <div className="max-w-2xl mx-auto px-6 py-10 space-y-8">
         {/* Avatar + Name */}
         <motion.div
           className="flex items-center gap-6"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center text-2xl font-bold shadow-lg">
+          <div className="w-16 h-16 bg-surface-secondary border border-border rounded-xl flex items-center justify-center text-xl font-bold font-mono text-text-primary shadow-sm">
             {initials}
           </div>
           <div>
-            <h1 className="text-2xl font-bold">{displayName}</h1>
-            <p className="text-slate-400 text-sm">{profile?.email || user?.email}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="px-2.5 py-0.5 bg-blue-500/20 border border-blue-500/40 rounded-full text-xs text-blue-300">
-                {form.target_role || 'No role set'}
+            <h1 className="text-xl font-bold tracking-tight text-text-primary">{displayName}</h1>
+            <p className="text-text-secondary text-xs mt-0.5">{profile?.email || user?.email}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="px-2 py-0.5 bg-surface-secondary border border-border rounded-full text-[10px] text-text-secondary font-medium">
+                {form.target_role || 'No Target Role Set'}
               </span>
               {form.skills.length > 0 && (
-                <span className="text-xs text-slate-500">{form.skills.length} skills</span>
+                <span className="text-[10px] text-text-muted">{form.skills.length} skills added</span>
               )}
             </div>
           </div>
@@ -109,35 +109,35 @@ export default function ProfilePage() {
         {/* Quick Stats */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { icon: Brain, label: 'Interviews', value: '4', color: 'text-blue-400' },
-            { icon: Award, label: 'Avg Score', value: '74%', color: 'text-yellow-400' },
-            { icon: TrendingUp, label: 'Improvement', value: '+12%', color: 'text-green-400' },
-          ].map(({ icon: Icon, label, value, color }) => (
-            <div key={label} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-center">
-              <Icon size={20} className={`mx-auto mb-1 ${color}`} />
-              <p className="text-xl font-bold">{value}</p>
-              <p className="text-xs text-slate-500">{label}</p>
+            { icon: Brain, label: 'Interviews', value: '4' },
+            { icon: Award, label: 'Avg Score', value: '74%' },
+            { icon: TrendingUp, label: 'Improvement', value: '+12%' },
+          ].map(({ icon: Icon, label, value }) => (
+            <div key={label} className="bg-surface border border-border rounded-xl p-4 text-center hover:border-text-muted/40 transition-all duration-200">
+              <Icon size={18} className="mx-auto mb-1.5 text-primary" />
+              <p className="text-lg font-bold text-text-primary font-mono">{value}</p>
+              <p className="text-[10px] text-text-muted mt-0.5 uppercase tracking-wider">{label}</p>
             </div>
           ))}
         </div>
 
         {/* Edit Form */}
-        <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 space-y-5">
-          <h2 className="font-semibold flex items-center gap-2 text-sm text-slate-300">
-            <User size={15} /> Personal Information
+        <div className="bg-surface border border-border rounded-xl p-6 space-y-5">
+          <h2 className="font-semibold flex items-center gap-2 text-xs uppercase tracking-wider text-text-secondary mb-2">
+            <User size={14} className="text-primary" /> Personal Information
           </h2>
 
           {/* Full Name */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Full Name</label>
+            <label className="block text-xs text-text-secondary mb-1.5 font-medium">Full Name</label>
             <div className="relative">
-              <User size={15} className="absolute left-3 top-3 text-slate-500" />
+              <User size={14} className="absolute left-3 top-3 text-text-muted" />
               <input
                 type="text"
                 name="full_name"
                 value={form.full_name}
                 onChange={handleChange}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-700/30 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none transition-colors text-white text-sm"
+                className="w-full pl-9 pr-4 py-2.5 bg-surface-secondary border border-border rounded-lg focus:border-primary focus:outline-none transition-colors text-text-primary text-sm placeholder-text-muted"
                 placeholder="Your full name"
               />
             </div>
@@ -145,27 +145,27 @@ export default function ProfilePage() {
 
           {/* Bio */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Bio</label>
+            <label className="block text-xs text-text-secondary mb-1.5 font-medium">Bio</label>
             <textarea
               name="bio"
               value={form.bio}
               onChange={handleChange}
               rows={3}
-              className="w-full px-4 py-2.5 bg-slate-700/30 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none transition-colors text-white text-sm resize-none"
+              className="w-full px-3.5 py-2 bg-surface-secondary border border-border rounded-lg focus:border-primary focus:outline-none transition-colors text-text-primary text-sm placeholder-text-muted resize-none"
               placeholder="Tell us a bit about yourself..."
             />
           </div>
 
           {/* Target Role */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1.5 font-medium">Target Role</label>
+            <label className="block text-xs text-text-secondary mb-1.5 font-medium">Target Role</label>
             <div className="relative">
-              <Briefcase size={15} className="absolute left-3 top-3 text-slate-500" />
+              <Briefcase size={14} className="absolute left-3 top-3 text-text-muted" />
               <select
                 name="target_role"
                 value={form.target_role}
                 onChange={handleChange}
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-700/30 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none transition-colors text-white text-sm appearance-none"
+                className="w-full pl-9 pr-4 py-2.5 bg-surface-secondary border border-border rounded-lg focus:border-primary focus:outline-none transition-colors text-text-primary text-sm appearance-none"
               >
                 <option value="">Select your target role</option>
                 {JOB_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -175,9 +175,9 @@ export default function ProfilePage() {
         </div>
 
         {/* Skills */}
-        <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 space-y-4">
-          <h2 className="font-semibold flex items-center gap-2 text-sm text-slate-300">
-            <Code2 size={15} /> Skills
+        <div className="bg-surface border border-border rounded-xl p-6 space-y-5">
+          <h2 className="font-semibold flex items-center gap-2 text-xs uppercase tracking-wider text-text-secondary mb-2">
+            <Code2 size={14} className="text-primary" /> Core Skills
           </h2>
 
           {/* Current Skills */}
@@ -185,25 +185,25 @@ export default function ProfilePage() {
             {form.skills.map((skill) => (
               <motion.span
                 key={skill}
-                className="flex items-center gap-1.5 px-3 py-1 bg-blue-500/20 border border-blue-500/40 rounded-full text-xs text-blue-300"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
+                className="flex items-center gap-1.5 px-3 py-1 bg-surface-secondary border border-border text-text-secondary hover:text-text-primary font-medium rounded-lg text-xs transition-colors"
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
               >
                 {skill}
-                <button onClick={() => removeSkill(skill)} className="hover:text-red-400 transition-colors">
+                <button onClick={() => removeSkill(skill)} className="hover:text-danger transition-colors">
                   <X size={11} />
                 </button>
               </motion.span>
             ))}
             {form.skills.length === 0 && (
-              <p className="text-xs text-slate-500">No skills added yet</p>
+              <p className="text-xs text-text-muted italic">No skills added yet</p>
             )}
           </div>
 
           {/* Skill Input */}
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Code2 size={14} className="absolute left-3 top-2.5 text-slate-500" />
+              <Code2 size={14} className="absolute left-3 top-2.5 text-text-muted" />
               <input
                 type="text"
                 value={skillInput}
@@ -211,27 +211,27 @@ export default function ProfilePage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') { e.preventDefault(); addSkill(skillInput); }
                 }}
-                className="w-full pl-8 pr-4 py-2 bg-slate-700/30 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none transition-colors text-white text-sm"
+                className="w-full pl-8 pr-4 py-2 bg-surface-secondary border border-border rounded-lg focus:border-primary focus:outline-none transition-colors text-text-primary text-sm placeholder-text-muted"
                 placeholder="Type a skill and press Enter"
               />
             </div>
             <button
               onClick={() => addSkill(skillInput)}
-              className="px-3 py-2 bg-blue-500/20 border border-blue-500/40 rounded-lg text-blue-400 hover:bg-blue-500/30 transition-all"
+              className="btn-primary py-2 px-3.5 flex items-center justify-center"
             >
-              <Plus size={16} />
+              <Plus size={15} />
             </button>
           </div>
 
           {/* Suggestions */}
           <div>
-            <p className="text-xs text-slate-500 mb-2">Suggestions:</p>
-            <div className="flex flex-wrap gap-1.5">
+            <p className="text-[10px] text-text-muted uppercase tracking-wider mb-2 font-medium">Suggestions</p>
+            <div className="flex flex-wrap gap-2">
               {SKILL_SUGGESTIONS.filter((s) => !form.skills.includes(s)).slice(0, 10).map((s) => (
                 <button
                   key={s}
                   onClick={() => addSkill(s)}
-                  className="px-2.5 py-1 bg-slate-700/50 border border-slate-600 rounded-full text-xs text-slate-400 hover:border-blue-500/50 hover:text-blue-300 transition-all"
+                  className="px-2.5 py-1 bg-surface-secondary border border-border rounded-lg text-xs text-text-secondary hover:border-primary/50 hover:text-primary transition-all font-medium"
                 >
                   + {s}
                 </button>
@@ -242,20 +242,18 @@ export default function ProfilePage() {
 
         {/* Save Button */}
         <div className="flex justify-end">
-          <motion.button
+          <button
             onClick={handleSave}
             disabled={loading}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+            className={`px-6 py-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
               saved
-                ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
-                : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:shadow-lg hover:shadow-blue-500/30'
+                ? 'bg-success hover:bg-success/90 text-white shadow-sm'
+                : 'btn-primary'
             }`}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
           >
-            <Save size={15} />
-            {loading ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
-          </motion.button>
+            <Save size={14} />
+            {loading ? 'Saving…' : saved ? 'Changes Saved!' : 'Save Changes'}
+          </button>
         </div>
       </div>
     </div>

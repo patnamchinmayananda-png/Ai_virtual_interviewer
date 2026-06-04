@@ -209,6 +209,42 @@ export function InterviewProvider({ children }) {
     }
   }, []);
 
+  const getSession = useCallback(async (sessionId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/interviews/session/${sessionId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.detail || 'Failed to fetch session details';
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getAnalytics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/interviews/analytics`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.detail || 'Failed to fetch analytics details';
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     currentSession,
     questions,
@@ -224,6 +260,8 @@ export function InterviewProvider({ children }) {
     completeSession,
     getReport,
     getSessions,
+    getSession,
+    getAnalytics,
     setCurrentQuestionIndex,
   };
 

@@ -8,10 +8,10 @@ import {
 import { useInterview } from '../context/InterviewContext';
 
 const INTERVIEW_TYPES = [
-  { value: 'hr', label: 'HR Interview', icon: Users, desc: 'Culture fit, motivation, and soft skills', color: 'from-pink-500/20 to-rose-500/20', border: 'border-pink-500/40' },
-  { value: 'technical', label: 'Technical', icon: Code2, desc: 'DSA, system design, coding questions', color: 'from-blue-500/20 to-cyan-500/20', border: 'border-blue-500/40' },
-  { value: 'behavioral', label: 'Behavioral', icon: Activity, desc: 'STAR method, past experiences', color: 'from-purple-500/20 to-violet-500/20', border: 'border-purple-500/40' },
-  { value: 'system_design', label: 'System Design', icon: Cpu, desc: 'Architecture, scalability, design', color: 'from-orange-500/20 to-amber-500/20', border: 'border-orange-500/40' },
+  { value: 'hr', label: 'HR Interview', icon: Users, desc: 'Culture fit, motivation, and soft skills' },
+  { value: 'technical', label: 'Technical', icon: Code2, desc: 'DSA, system design, coding questions' },
+  { value: 'behavioral', label: 'Behavioral', icon: Activity, desc: 'STAR method, past experiences' },
+  { value: 'system_design', label: 'System Design', icon: Cpu, desc: 'Architecture, scalability, design' },
 ];
 
 const JOB_ROLES = [
@@ -22,32 +22,36 @@ const JOB_ROLES = [
   { value: 'data_analyst', label: 'Data Analyst' },
 ];
 
-const DIFFICULTIES = [
-  { value: 'beginner', label: 'Beginner', desc: 'Entry level, fundamentals', color: 'border-green-500/50 bg-green-500/10' },
-  { value: 'intermediate', label: 'Intermediate', desc: '2–4 years experience', color: 'border-yellow-500/50 bg-yellow-500/10' },
-  { value: 'advanced', label: 'Advanced', desc: 'Senior / Lead level', color: 'border-red-500/50 bg-red-500/10' },
+const DIFFICULTIES_STANDARD = [
+  { value: 'beginner', label: 'Beginner', desc: 'Entry level, fundamentals', color: 'border-success/30 bg-success/15 text-success' },
+  { value: 'intermediate', label: 'Intermediate', desc: '2–4 years experience', color: 'border-warning/30 bg-warning/15 text-warning' },
+  { value: 'advanced', label: 'Advanced', desc: 'Senior / Lead level', color: 'border-danger/30 bg-danger/15 text-danger' },
+];
+
+const DIFFICULTIES_ENGINEERING = [
+  { value: 'fresher', label: 'Fresher', desc: 'College grads, basic concepts', color: 'border-success/30 bg-success/15 text-success' },
+  { value: 'sde_1', label: 'SDE 1', desc: '1–3 years exp, core coding/design', color: 'border-warning/30 bg-warning/15 text-warning' },
+  { value: 'sde_2', label: 'SDE 2', desc: '3+ years exp, system scalability', color: 'border-danger/30 bg-danger/15 text-danger' },
 ];
 
 const DURATIONS = [15, 20, 30, 45, 60];
 
 function SelectCard({ selected, onClick, children, className = '' }) {
   return (
-    <motion.button
+    <button
       type="button"
       onClick={onClick}
       className={`relative w-full text-left p-4 rounded-xl border transition-all ${
         selected
-          ? 'border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/20'
-          : 'border-slate-700 bg-slate-800/40 hover:border-slate-500'
+          ? 'border-primary bg-primary/5 shadow-sm'
+          : 'border-border bg-surface-secondary/40 hover:border-text-muted/40'
       } ${className}`}
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 0.99 }}
     >
       {selected && (
-        <CheckCircle size={16} className="absolute top-3 right-3 text-blue-400" />
+        <CheckCircle size={15} className="absolute top-3.5 right-3.5 text-primary" />
       )}
       {children}
-    </motion.button>
+    </button>
   );
 }
 
@@ -56,6 +60,8 @@ export default function InterviewSetupPage() {
   const { createSession, uploadResume, loading } = useInterview();
   
   const [step, setStep] = useState(1);
+  const [difficultyTier, setDifficultyTier] = useState('standard'); // standard or engineering
+  const [extractedDetails, setExtractedDetails] = useState(null);
   const [config, setConfig] = useState({
     interview_type: '',
     job_role: '',
@@ -69,6 +75,8 @@ export default function InterviewSetupPage() {
   const [uploadError, setUploadError] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0); // 0 = empty, 1 = parsing, 2 = success
   const [isDragOver, setIsDragOver] = useState(false);
+  const [processingStage, setProcessingStage] = useState(0); // 0 = idle, 1 = upload, 2 = analyze, 3 = skills, 4 = projects, 5 = generate, 6 = ready
+  const [tempDetails, setTempDetails] = useState(null);
   const fileInputRef = useRef(null);
 
   const TOTAL_STEPS = 5;
@@ -122,22 +130,49 @@ export default function InterviewSetupPage() {
     setUploadError('');
     setUploadedFileName(file.name);
     setUploadProgress(1); // 1 = parsing/uploading
+    setProcessingStage(1); // Uploading Resume
     
     try {
       // Call Context multipart Axios endpoint
       const result = await uploadResume(file);
+      setTempDetails(result.extracted_details);
+
+      // Run sequential state machine step delays for premium experience
+      await new Promise(r => setTimeout(r, 600));
+      setProcessingStage(2); // Analyzing Resume
+
+      await new Promise(r => setTimeout(r, 800));
+      setProcessingStage(3); // Detecting Skills
+
+      await new Promise(r => setTimeout(r, 900));
+      setProcessingStage(4); // Detecting Projects
+
+      await new Promise(r => setTimeout(r, 900));
+      setProcessingStage(5); // Customizing Model
+
+      await new Promise(r => setTimeout(r, 700));
+      setProcessingStage(6); // Success ready
+
+      await new Promise(r => setTimeout(r, 500));
+      
       set('resume_text', result.resume_text);
+      setExtractedDetails(result.extracted_details);
       setUploadProgress(2); // 2 = success
+      setProcessingStage(0);
+      setTempDetails(null);
     } catch (err) {
       console.error(err);
       setUploadError(err.response?.data?.detail || "Failed to extract text. Make sure the PDF is not an image scan.");
       setUploadProgress(0);
       setUploadedFileName('');
+      setProcessingStage(0);
+      setTempDetails(null);
     }
   };
 
   const handleClearResume = () => {
     set('resume_text', '');
+    setExtractedDetails(null);
     setUploadedFileName('');
     setUploadProgress(0);
     setUploadError('');
@@ -157,27 +192,27 @@ export default function InterviewSetupPage() {
   const stepTitles = ['Interview Type', 'Job Role', 'Upload Resume', 'Difficulty', 'Duration'];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col select-none">
+    <div className="min-h-screen bg-background text-text-primary flex flex-col select-none">
       {/* Top bar */}
-      <div className="border-b border-slate-800 px-6 py-4 flex items-center justify-between bg-slate-900/40 backdrop-blur sticky top-0 z-10">
-        <Link to="/dashboard" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-semibold">
+      <div className="border-b border-border px-6 py-4 flex items-center justify-between bg-surface/50 backdrop-blur sticky top-0 z-10">
+        <Link to="/dashboard" className="flex items-center gap-1.5 text-text-secondary hover:text-text-primary transition-colors text-sm font-semibold">
           <ChevronLeft size={16} /> Dashboard
         </Link>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg border border-border bg-surface-secondary flex items-center justify-center text-primary">
             <Brain size={16} />
           </div>
-          <span className="font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <span className="font-bold text-sm tracking-tight text-text-primary">
             Interview Setup Wizard
           </span>
         </div>
-        <div className="text-xs text-slate-500 font-medium">Step {step} of {TOTAL_STEPS}</div>
+        <div className="text-xs text-text-muted font-medium">Step {step} of {TOTAL_STEPS}</div>
       </div>
 
       {/* Progress bar */}
-      <div className="h-1 bg-slate-900">
+      <div className="h-1 bg-surface-secondary">
         <motion.div
-          className="h-full bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500 shadow-glow shadow-purple-500/50"
+          className="h-full bg-primary"
           initial={false}
           animate={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
           transition={{ duration: 0.4 }}
@@ -185,19 +220,23 @@ export default function InterviewSetupPage() {
       </div>
 
       <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-2xl bg-slate-900/20 border border-slate-800/80 p-8 rounded-2xl backdrop-blur-md shadow-2xl relative">
+        <div className="w-full max-w-xl bg-surface border border-border p-8 rounded-xl shadow-md relative">
           
           {/* Step Timeline Indicators */}
           <div className="flex justify-center gap-2 mb-8 flex-wrap">
             {stepTitles.map((t, i) => (
               <div key={i} className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                  i + 1 < step ? 'bg-green-500' : i + 1 === step ? 'bg-blue-500 shadow-glow shadow-blue-500/30' : 'bg-slate-800 text-slate-500 border border-slate-750'
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all border ${
+                  i + 1 < step 
+                    ? 'bg-success border-success text-white' 
+                    : i + 1 === step 
+                      ? 'bg-primary border-primary text-white shadow-sm' 
+                      : 'bg-surface-secondary border-border text-text-muted'
                 }`}>
-                  {i + 1 < step ? <CheckCircle size={14} /> : i + 1}
+                  {i + 1 < step ? <CheckCircle size={13} /> : i + 1}
                 </div>
                 {i < stepTitles.length - 1 && (
-                  <div className={`w-6 sm:w-10 h-px ${i + 1 < step ? 'bg-green-500' : 'bg-slate-800'}`} />
+                  <div className={`w-6 sm:w-8 h-px ${i + 1 < step ? 'bg-success' : 'bg-border'}`} />
                 )}
               </div>
             ))}
@@ -206,17 +245,17 @@ export default function InterviewSetupPage() {
           <AnimatePresence mode="wait">
             {/* Step 1 – Interview Type */}
             {step === 1 && (
-              <motion.div key="step1" initial={{ opacity: 0, x: 25 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -25 }} transition={{ duration: 0.2 }}>
-                <h2 className="text-2xl font-bold mb-1 text-center bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent">Choose Interview Type</h2>
-                <p className="text-slate-400 text-xs text-center mb-6">Select the mock interview category you would like to practice</p>
+              <motion.div key="step1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+                <h2 className="text-xl font-bold tracking-tight text-text-primary text-center mb-1">Choose Interview Type</h2>
+                <p className="text-text-secondary text-xs text-center mb-6">Select the mock interview category you would like to practice</p>
                 <div className="grid sm:grid-cols-2 gap-4">
                   {INTERVIEW_TYPES.map((t) => (
                     <SelectCard key={t.value} selected={config.interview_type === t.value} onClick={() => set('interview_type', t.value)}>
-                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${t.color} border ${t.border} flex items-center justify-center mb-3`}>
-                        <t.icon size={20} className="text-white" />
+                      <div className="w-10 h-10 rounded-lg border border-border bg-surface-secondary flex items-center justify-center mb-3 text-primary">
+                        <t.icon size={18} />
                       </div>
-                      <p className="font-semibold text-sm mb-1">{t.label}</p>
-                      <p className="text-slate-400 text-xs leading-relaxed">{t.desc}</p>
+                      <p className="font-semibold text-xs text-text-primary mb-1">{t.label}</p>
+                      <p className="text-text-secondary text-[11px] leading-relaxed">{t.desc}</p>
                     </SelectCard>
                   ))}
                 </div>
@@ -225,110 +264,295 @@ export default function InterviewSetupPage() {
 
             {/* Step 2 – Job Role */}
             {step === 2 && (
-              <motion.div key="step2" initial={{ opacity: 0, x: 25 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -25 }} transition={{ duration: 0.2 }}>
-                <h2 className="text-2xl font-bold mb-1 text-center bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent">Select Job Role</h2>
-                <p className="text-slate-400 text-xs text-center mb-6">Mock questions will be tailored to the core competencies of this role</p>
+              <motion.div key="step2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+                <h2 className="text-xl font-bold tracking-tight text-text-primary text-center mb-1">Select Job Role</h2>
+                <p className="text-text-secondary text-xs text-center mb-6">Mock questions will be tailored to the core competencies of this role</p>
                 <div className="space-y-3">
                   {JOB_ROLES.map((r) => (
                     <SelectCard key={r.value} selected={config.job_role === r.value} onClick={() => set('job_role', r.value)}>
-                      <span className="font-medium text-sm">{r.label}</span>
+                      <span className="font-semibold text-xs text-text-primary">{r.label}</span>
                     </SelectCard>
                   ))}
                 </div>
               </motion.div>
             )}
 
-            {/* Step 3 – Resume Upload (New Custom Step!) */}
+            {/* Step 3 – Resume Upload */}
             {step === 3 && (
-              <motion.div key="step3" initial={{ opacity: 0, x: 25 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -25 }} transition={{ duration: 0.2 }}>
-                <h2 className="text-2xl font-bold mb-1 text-center bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent">Upload Your Resume</h2>
-                <p className="text-slate-400 text-xs text-center mb-6">Optional: Upload a PDF/TXT resume. AI will tailor questions based on your actual projects & skills!</p>
+              <motion.div key="step3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+                <h2 className="text-xl font-bold tracking-tight text-text-primary text-center mb-1">Upload Your Resume</h2>
+                <p className="text-text-secondary text-xs text-center mb-6">Optional: Upload a PDF/TXT resume. AI will tailor questions based on your actual projects & skills!</p>
                 
-                <div 
-                  onDragEnter={handleDrag}
-                  onDragOver={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`w-full p-8 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-4 cursor-pointer transition-all ${
-                    isDragOver 
-                      ? 'border-blue-500 bg-blue-500/10 shadow-glow shadow-blue-500/25' 
-                      : uploadProgress === 2 
-                      ? 'border-green-500/50 bg-green-500/5'
-                      : 'border-slate-700 bg-slate-800/10 hover:border-slate-500 hover:bg-slate-800/25'
-                  }`}
-                >
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden" 
-                    accept=".pdf,.txt"
-                  />
-
-                  {uploadProgress === 0 ? (
-                    <>
-                      <div className="w-12 h-12 rounded-xl bg-slate-800/60 flex items-center justify-center text-slate-400">
-                        <Upload size={24} />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-semibold text-slate-200">Drag & drop your resume file here</p>
-                        <p className="text-xs text-slate-500 mt-1">Supports PDF or TXT formats (Max 5MB)</p>
-                      </div>
-                    </>
-                  ) : uploadProgress === 1 ? (
-                    <>
-                      <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
-                        <Loader2 size={24} className="animate-spin" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-semibold text-blue-300 animate-pulse">Extracting resume layers...</p>
-                        <p className="text-xs text-slate-500 mt-1">This will take just a few seconds</p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center text-green-400 border border-green-500/30">
-                        <FileText size={24} />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-semibold text-green-400">Resume Parsed Successfully!</p>
-                        <p className="text-xs text-slate-300 mt-1 italic">"{uploadedFileName}"</p>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Progress bar inside drop zone */}
-                {uploadProgress === 1 && (
-                  <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden mt-4">
-                    <motion.div 
-                      className="h-full bg-gradient-to-r from-blue-500 to-purple-600" 
-                      animate={{ width: ["0%", "85%", "95%"] }} 
-                      transition={{ duration: 4 }}
+                {uploadProgress === 0 ? (
+                  <div 
+                    onDragEnter={handleDrag}
+                    onDragOver={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`w-full p-8 border border-dashed rounded-xl flex flex-col items-center justify-center gap-4 cursor-pointer transition-all ${
+                      isDragOver 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border bg-surface-secondary/20 hover:border-text-muted/40 hover:bg-surface-secondary/40'
+                    }`}
+                  >
+                    <input 
+                      type="file" 
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      className="hidden" 
+                      accept=".pdf,.txt"
                     />
+                    <div className="w-10 h-10 rounded-xl bg-surface-secondary border border-border flex items-center justify-center text-text-secondary">
+                      <Upload size={18} />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs font-semibold text-text-primary">Drag & drop your resume file here</p>
+                      <p className="text-[10px] text-text-muted mt-1">Supports PDF or TXT formats (Max 5MB)</p>
+                    </div>
                   </div>
-                )}
+                ) : uploadProgress === 1 ? (
+                  <div className="w-full bg-surface-secondary/40 border border-border p-6 rounded-xl space-y-6">
+                    <div className="space-y-4">
+                      {/* Step 1: Uploading Resume */}
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5">
+                          {processingStage > 1 ? (
+                            <CheckCircle size={14} className="text-success" />
+                          ) : processingStage === 1 ? (
+                            <Loader2 size={14} className="text-primary animate-spin" />
+                          ) : (
+                            <div className="w-3.5 h-3.5 rounded-full border border-border" />
+                          )}
+                          <span className={processingStage === 1 ? "font-semibold text-text-primary" : "text-text-secondary"}>
+                            Uploading Resume
+                          </span>
+                        </div>
+                        {processingStage === 1 && <span className="text-text-muted text-[10px] font-mono animate-pulse">Uploading</span>}
+                      </div>
 
-                {/* Success Indicator & Delete action */}
-                {uploadProgress === 2 && (
-                  <div className="flex justify-between items-center bg-slate-900 border border-slate-800 p-3 rounded-xl mt-4">
-                    <span className="text-xs text-slate-400 font-medium">Ready for tailored questioning.</span>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleClearResume();
-                      }}
-                      className="text-xs font-semibold text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors"
-                    >
-                      <Trash2 size={13} /> Remove File
-                    </button>
+                      {/* Step 2: Analyzing Resume */}
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5">
+                          {processingStage > 2 ? (
+                            <CheckCircle size={14} className="text-success" />
+                          ) : processingStage === 2 ? (
+                            <Loader2 size={14} className="text-primary animate-spin" />
+                          ) : (
+                            <div className="w-3.5 h-3.5 rounded-full border border-border" />
+                          )}
+                          <span className={processingStage === 2 ? "font-semibold text-text-primary" : "text-text-secondary"}>
+                            Analyzing Resume Layers
+                          </span>
+                        </div>
+                        {processingStage === 2 && <span className="text-text-muted text-[10px] font-mono animate-pulse">Processing</span>}
+                      </div>
+
+                      {/* Step 3: Detecting Skills */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2.5">
+                            {processingStage > 3 ? (
+                              <CheckCircle size={14} className="text-success" />
+                            ) : processingStage === 3 ? (
+                              <Loader2 size={14} className="text-primary animate-spin" />
+                            ) : (
+                              <div className="w-3.5 h-3.5 rounded-full border border-border" />
+                            )}
+                            <span className={processingStage === 3 ? "font-semibold text-text-primary" : "text-text-secondary"}>
+                              Detecting Skills
+                            </span>
+                          </div>
+                          {processingStage === 3 && <span className="text-text-muted text-[10px] font-mono animate-pulse">Extracting</span>}
+                        </div>
+                        {processingStage >= 3 && (
+                          <div className="flex flex-wrap gap-1.5 pl-6">
+                            {(tempDetails?.skills?.length ? tempDetails.skills : ["React", "Node.js", "Python", "MongoDB"]).map((s, idx) => (
+                              <motion.span
+                                key={s}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.2, delay: idx * 0.1 }}
+                                className="px-2 py-0.5 rounded bg-surface border border-border text-text-primary text-[10px] font-mono flex items-center gap-1"
+                              >
+                                ✓ {s}
+                              </motion.span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Step 4: Detecting Projects */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2.5">
+                            {processingStage > 4 ? (
+                              <CheckCircle size={14} className="text-success" />
+                            ) : processingStage === 4 ? (
+                              <Loader2 size={14} className="text-primary animate-spin" />
+                            ) : (
+                              <div className="w-3.5 h-3.5 rounded-full border border-border" />
+                            )}
+                            <span className={processingStage === 4 ? "font-semibold text-text-primary" : "text-text-secondary"}>
+                              Detecting Projects
+                            </span>
+                          </div>
+                          {processingStage === 4 && <span className="text-text-muted text-[10px] font-mono animate-pulse">Scanning</span>}
+                        </div>
+                        {processingStage >= 4 && (
+                          <div className="space-y-1 pl-6">
+                            {(tempDetails?.projects?.length ? tempDetails.projects : ["AI Virtual Interviewer", "Portfolio Website"]).map((p, idx) => (
+                              <motion.div
+                                key={p}
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.25, delay: idx * 0.15 }}
+                                className="text-text-secondary text-[10px] flex items-center gap-1.5"
+                              >
+                                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                {p}
+                              </motion.div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Step 5: Generating Personalized Interview */}
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5">
+                          {processingStage > 5 ? (
+                            <CheckCircle size={14} className="text-success" />
+                          ) : processingStage === 5 ? (
+                            <Loader2 size={14} className="text-primary animate-spin" />
+                          ) : (
+                            <div className="w-3.5 h-3.5 rounded-full border border-border" />
+                          )}
+                          <span className={processingStage === 5 ? "font-semibold text-text-primary" : "text-text-secondary"}>
+                            Generating Personalized Interview Model
+                          </span>
+                        </div>
+                        {processingStage === 5 && <span className="text-text-muted text-[10px] font-mono animate-pulse">Calibrating</span>}
+                      </div>
+
+                      {/* Step 6: Ready */}
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5">
+                          {processingStage >= 6 ? (
+                            <CheckCircle size={14} className="text-success" />
+                          ) : (
+                            <div className="w-3.5 h-3.5 rounded-full border border-border" />
+                          )}
+                          <span className={processingStage === 6 ? "font-semibold text-success" : "text-text-secondary"}>
+                            Ready
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar indicator */}
+                    <div className="w-full bg-border h-1 rounded-full overflow-hidden mt-4">
+                      <motion.div 
+                        className="h-full bg-primary" 
+                        animate={{ width: `${(processingStage / 6) * 100}%` }} 
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="w-full p-6 border border-dashed border-success/40 bg-success/5 rounded-xl flex flex-col items-center justify-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-success/20 flex items-center justify-center text-success border border-success/30">
+                        <FileText size={18} />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-semibold text-success">Resume Parsed Successfully!</p>
+                        <p className="text-[10px] text-text-secondary mt-1 italic">"{uploadedFileName}"</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center bg-surface-secondary border border-border p-3 rounded-lg">
+                      <span className="text-[11px] text-text-secondary font-medium">Ready for tailored questioning.</span>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleClearResume();
+                        }}
+                        className="text-xs font-semibold text-danger hover:text-danger/95 flex items-center gap-1 transition-colors"
+                      >
+                        <Trash2 size={13} /> Remove File
+                      </button>
+                    </div>
+
+                    {extractedDetails && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 bg-surface-secondary/60 border border-border rounded-lg space-y-3"
+                      >
+                        <div className="flex items-center gap-2 text-success">
+                          <CheckCircle size={15} />
+                          <span className="text-xs font-medium text-success">Your interview has been personalized based on your resume.</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 text-[11px]">
+                          {extractedDetails.skills?.length > 0 && (
+                            <div>
+                              <span className="text-text-muted block font-semibold uppercase tracking-wider text-[9px] mb-1">Detected Skills</span>
+                              <div className="flex flex-wrap gap-1">
+                                {extractedDetails.skills.map((s) => (
+                                  <span key={s} className="px-1.5 py-0.5 rounded bg-surface border border-border text-text-primary">✓ {s}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {extractedDetails.technologies?.length > 0 && (
+                            <div>
+                              <span className="text-text-muted block font-semibold uppercase tracking-wider text-[9px] mb-1">Technologies</span>
+                              <div className="flex flex-wrap gap-1">
+                                {extractedDetails.technologies.map((t) => (
+                                  <span key={t} className="px-1.5 py-0.5 rounded bg-surface border border-border text-text-primary">{t}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {extractedDetails.projects?.length > 0 && (
+                          <div className="text-[11px]">
+                            <span className="text-text-muted block font-semibold uppercase tracking-wider text-[9px] mb-1">Projects Focus</span>
+                            <ul className="space-y-0.5 text-text-secondary list-disc pl-3">
+                              {extractedDetails.projects.map((p) => (
+                                <li key={p}>{p}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {(extractedDetails.experience?.length > 0 || extractedDetails.education?.length > 0) && (
+                          <div className="grid grid-cols-2 gap-3 text-[11px] pt-1 border-t border-border/50">
+                            {extractedDetails.experience?.length > 0 && (
+                              <div>
+                                <span className="text-text-muted block font-semibold uppercase tracking-wider text-[9px] mb-1">Experience</span>
+                                <span className="text-text-secondary truncate block">{extractedDetails.experience[0]}</span>
+                              </div>
+                            )}
+                            {extractedDetails.education?.length > 0 && (
+                              <div>
+                                <span className="text-text-muted block font-semibold uppercase tracking-wider text-[9px] mb-1">Education</span>
+                                <span className="text-text-secondary truncate block">{extractedDetails.education[0]}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
                   </div>
                 )}
 
                 {/* Error Banner */}
                 {uploadError && (
-                  <div className="bg-red-500/10 border border-red-500/30 p-3.5 rounded-xl flex gap-2.5 items-start text-xs text-red-400 mt-4">
+                  <div className="bg-danger/10 border border-danger/25 p-3.5 rounded-lg flex gap-2.5 items-start text-xs text-danger mt-4">
                     <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold block">Upload Error</span>
@@ -338,24 +562,59 @@ export default function InterviewSetupPage() {
                 )}
 
                 <div className="text-center mt-6">
-                  <span className="text-slate-500 text-xs">Don't have a resume? You can simply click <strong>Next</strong> to skip.</span>
+                  <span className="text-text-muted text-[10px]">Don't have a resume? You can simply click <strong>Next</strong> to skip.</span>
                 </div>
               </motion.div>
             )}
 
             {/* Step 4 – Difficulty */}
             {step === 4 && (
-              <motion.div key="step4" initial={{ opacity: 0, x: 25 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -25 }} transition={{ duration: 0.2 }}>
-                <h2 className="text-2xl font-bold mb-1 text-center bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent">Choose Difficulty</h2>
-                <p className="text-slate-400 text-xs text-center mb-6">AI Interviewer adjusts target depths dynamically based on your answers</p>
+              <motion.div key="step4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+                <h2 className="text-xl font-bold tracking-tight text-text-primary text-center mb-1">Choose Difficulty</h2>
+                <p className="text-text-secondary text-xs text-center mb-6">AI Interviewer adjusts target depths dynamically based on your answers</p>
+                
+                {/* Tier Switcher Toggle */}
+                <div className="flex justify-center mb-6">
+                  <div className="bg-surface-secondary border border-border p-1 rounded-lg flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDifficultyTier('standard');
+                        set('difficulty', '');
+                      }}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                        difficultyTier === 'standard'
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      Standard Tiers
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDifficultyTier('engineering');
+                        set('difficulty', '');
+                      }}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                        difficultyTier === 'engineering'
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      Engineering Tiers
+                    </button>
+                  </div>
+                </div>
+
                 <div className="space-y-4">
-                  {DIFFICULTIES.map((d) => (
+                  {(difficultyTier === 'standard' ? DIFFICULTIES_STANDARD : DIFFICULTIES_ENGINEERING).map((d) => (
                     <SelectCard key={d.value} selected={config.difficulty === d.value} onClick={() => set('difficulty', d.value)}>
                       <div className="flex items-center gap-3">
-                        <div className={`px-2.5 py-0.5 rounded text-xs font-bold border ${d.color}`}>
+                        <div className={`px-2.5 py-0.5 rounded text-[10px] font-bold border ${d.color}`}>
                           {d.label}
                         </div>
-                        <p className="text-slate-400 text-sm">{d.desc}</p>
+                        <p className="text-text-secondary text-xs">{d.desc}</p>
                       </div>
                     </SelectCard>
                   ))}
@@ -365,33 +624,31 @@ export default function InterviewSetupPage() {
 
             {/* Step 5 – Duration & Summary */}
             {step === 5 && (
-              <motion.div key="step5" initial={{ opacity: 0, x: 25 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -25 }} transition={{ duration: 0.2 }}>
-                <h2 className="text-2xl font-bold mb-1 text-center bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent">Interview Duration</h2>
-                <p className="text-slate-400 text-xs text-center mb-6">How long would you like the mock simulation to last?</p>
+              <motion.div key="step5" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+                <h2 className="text-xl font-bold tracking-tight text-text-primary text-center mb-1">Interview Duration</h2>
+                <p className="text-text-secondary text-xs text-center mb-6">How long would you like the mock simulation to last?</p>
 
                 {/* Duration Selector */}
                 <div className="flex gap-3 justify-center flex-wrap mb-6">
                   {DURATIONS.map((d) => (
-                    <motion.button
+                    <button
                       key={d}
                       type="button"
                       onClick={() => set('duration_minutes', d)}
-                      className={`px-5 py-2.5 rounded-lg border text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      className={`px-4 py-2 rounded-lg border text-xs font-semibold transition-all flex items-center gap-1.5 ${
                         config.duration_minutes === d
-                          ? 'border-blue-500 bg-blue-500/20 text-blue-300 shadow-glow shadow-blue-500/10'
-                          : 'border-slate-700 text-slate-400 hover:border-slate-500 bg-slate-800/10'
+                          ? 'bg-primary border-primary text-white shadow-sm'
+                          : 'border-border text-text-secondary hover:text-text-primary bg-surface-secondary/40'
                       }`}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
                     >
                       <Clock size={13} /> {d} Min
-                    </motion.button>
+                    </button>
                   ))}
                 </div>
 
                 {/* Summary Card */}
-                <div className="bg-slate-800/20 border border-slate-750 rounded-xl p-5 space-y-2.5 backdrop-blur-sm shadow-inner">
-                  <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider mb-2">Simulation Summary</h3>
+                <div className="bg-surface-secondary/60 border border-border rounded-xl p-5 space-y-2.5">
+                  <h3 className="font-bold text-[10px] text-text-secondary uppercase tracking-wider mb-2">Simulation Summary</h3>
                   {[
                     { label: 'Category', value: config.interview_type?.replace('_', ' ') },
                     { label: 'Target Role', value: config.job_role?.replace(/_/g, ' ') },
@@ -399,9 +656,9 @@ export default function InterviewSetupPage() {
                     { label: 'Difficulty', value: config.difficulty },
                     { label: 'Duration limit', value: `${config.duration_minutes} minutes` },
                   ].map(({ label, value }) => (
-                    <div key={label} className="flex justify-between text-xs border-b border-slate-800/60 pb-2 last:border-b-0 last:pb-0">
-                      <span className="text-slate-500 font-medium">{label}</span>
-                      <span className={`font-semibold capitalize ${label === 'Tailored Resume' && config.resume_text ? 'text-green-400' : 'text-slate-200'}`}>{value}</span>
+                    <div key={label} className="flex justify-between text-xs border-b border-border pb-2 last:border-b-0 last:pb-0 last:border-transparent">
+                      <span className="text-text-secondary font-medium">{label}</span>
+                      <span className={`font-semibold capitalize ${label === 'Tailored Resume' && config.resume_text ? 'text-success' : 'text-text-primary'}`}>{value}</span>
                     </div>
                   ))}
                 </div>
@@ -412,37 +669,31 @@ export default function InterviewSetupPage() {
           {/* Nav Buttons HUD */}
           <div className="flex gap-4 mt-8">
             {step > 1 && (
-              <motion.button
+              <button
                 onClick={() => setStep((s) => s - 1)}
-                className="flex-1 py-3 border border-slate-700 rounded-xl text-slate-300 hover:border-slate-500 hover:text-white transition-all font-semibold text-xs flex items-center justify-center gap-1.5 bg-slate-800/10"
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+                className="btn-secondary flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5"
               >
                 <ChevronLeft size={15} /> Back
-              </motion.button>
+              </button>
             )}
 
             {step < TOTAL_STEPS ? (
-              <motion.button
+              <button
                 onClick={() => setStep((s) => s + 1)}
                 disabled={!canNext() || (step === 3 && uploadProgress === 1)}
-                className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl font-bold text-xs hover:shadow-glow hover:shadow-blue-500/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+                className="btn-primary flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5"
               >
                 {step === 3 && !config.resume_text ? 'Skip & Next' : 'Next'} <ChevronRight size={15} />
-              </motion.button>
+              </button>
             ) : (
-              <motion.button
+              <button
                 onClick={handleStart}
                 disabled={loading}
-                className="flex-1 py-3 bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500 rounded-xl font-bold text-xs hover:shadow-glow hover:shadow-purple-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-lg"
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+                className="btn-primary flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5"
               >
-                <Zap size={14} fill="white" />
+                <Zap size={14} />
                 {loading ? 'Entering Call Room...' : 'Start Tailored Interview'}
-              </motion.button>
+              </button>
             )}
           </div>
         </div>

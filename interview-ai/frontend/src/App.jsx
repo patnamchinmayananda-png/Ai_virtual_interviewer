@@ -13,6 +13,7 @@ import LiveInterviewPage from './pages/LiveInterviewPage';
 import ReportPage from './pages/ReportPage';
 import ProfilePage from './pages/ProfilePage';
 import ResumeAnalyzerPage from './pages/ResumeAnalyzerPage';
+import HistoryPage from './pages/HistoryPage';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -39,6 +40,14 @@ function App() {
               }
             />
             <Route
+              path="/history"
+              element={
+                <ProtectedRoute>
+                  <HistoryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/interview-setup"
               element={
                 <ProtectedRoute>
@@ -48,19 +57,11 @@ function App() {
             />
             <Route
               path="/interview/:sessionId"
-              element={
-                <ProtectedRoute>
-                  <LiveInterviewPage />
-                </ProtectedRoute>
-              }
+              element={<LiveInterviewPage />}
             />
             <Route
               path="/report/:sessionId"
-              element={
-                <ProtectedRoute>
-                  <ReportPage />
-                </ProtectedRoute>
-              }
+              element={<ReportPage />}
             />
             <Route
               path="/resume-analyzer"

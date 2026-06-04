@@ -21,6 +21,9 @@ class DifficultyLevel(str, Enum):
     BEGINNER = "beginner"
     INTERMEDIATE = "intermediate"
     ADVANCED = "advanced"
+    FRESHER = "fresher"
+    SDE_1 = "sde_1"
+    SDE_2 = "sde_2"
 
 class SessionStatus(str, Enum):
     ACTIVE = "active"
@@ -123,6 +126,8 @@ class Answer(BaseModel):
     overall_score: Optional[float] = None
     feedback: Optional[str] = None
     improvements: Optional[List[str]] = None
+    strengths: Optional[List[str]] = None
+    weaknesses: Optional[List[str]] = None
     filler_word_count: Optional[int] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -142,6 +147,7 @@ class InterviewReport(BaseModel):
     weaknesses: List[str]
     improvements: List[str]
     learning_resources: Optional[List[dict]] = None
+    roadmap: Optional[List[dict]] = None
     transcript: List[dict]
     generated_at: datetime = Field(default_factory=datetime.utcnow)
 

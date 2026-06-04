@@ -11,15 +11,39 @@ import { useInterview } from '../context/InterviewContext';
 // Helper to format remaining time
 const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
+const DEMO_QUESTIONS = [
+  "Can you explain the difference between a list and a tuple in Python, and when you would use each?",
+  "What is a Load Balancer, and why is it important in scaling a web application?",
+  "Tell me about a time you had a disagreement with a team member. How did you handle it and what was the outcome?"
+];
+
 export default function LiveInterviewPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   
   // Real REST context hooks from InterviewContext
-  const { getNextQuestion, evaluateAnswer, completeSession } = useInterview();
+  const { getNextQuestion, evaluateAnswer, completeSession, getSession } = useInterview();
 
   // Core state variables: default to 'lobby' to bypass browser user-activation restrictions for audio synthesis!
   const [phase, setPhase] = useState('lobby'); // lobby | loading | question | answering | evaluating | complete
+  const [thinkingTextIdx, setThinkingTextIdx] = useState(0);
+  const thinkingTexts = [
+    "Analyzing Response",
+    "Preparing Follow-up Question",
+    "Generating Feedback"
+  ];
+  useEffect(() => {
+    let interval;
+    if (phase === 'loading' || phase === 'evaluating') {
+      interval = setInterval(() => {
+        setThinkingTextIdx((idx) => (idx + 1) % thinkingTexts.length);
+      }, 1500);
+    } else {
+      setThinkingTextIdx(0);
+    }
+    return () => clearInterval(interval);
+  }, [phase]);
+  const [sessionConfig, setSessionConfig] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [questionIdx, setQuestionIdx] = useState(0);
   const [answerText, setAnswerText] = useState('');
@@ -55,7 +79,7 @@ export default function LiveInterviewPage() {
   // Persistent utterance reference to prevent Chrome V8 garbage-collection bugs!
   const utteranceRef = useRef(null);
   
-  const MAX_QUESTIONS = 5;
+  const MAX_QUESTIONS = sessionId?.startsWith('demo') ? 3 : 5;
 
   // Initialize Speech Synthesis Voices
   useEffect(() => {
@@ -83,6 +107,33 @@ export default function LiveInterviewPage() {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
   }, []);
+
+  // Auth check and load session details
+  useEffect(() => {
+    if (sessionId.startsWith('demo')) {
+      // Mock session config for demo
+      setSessionConfig({
+        interview_type: 'technical',
+        job_role: 'software_engineer',
+        difficulty: 'sde_1',
+        duration_minutes: 15
+      });
+    } else {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      // Fetch session details
+      getSession(sessionId).then((data) => {
+        if (data && data.config) {
+          setSessionConfig(data.config);
+        }
+      }).catch((err) => {
+        console.error("Failed to load session info:", err);
+      });
+    }
+  }, [sessionId, navigate, getSession]);
 
   // Periodic resume interval to prevent Chrome's 15-second Speech Synthesis mute freeze bug!
   useEffect(() => {
@@ -392,6 +443,25 @@ export default function LiveInterviewPage() {
     setAnswerText('');
     setIsSpeaking(true);
 
+    if (sessionId.startsWith('demo')) {
+      // Simulate network latency for demo
+      setTimeout(() => {
+        const questionText = DEMO_QUESTIONS[questionIdx];
+        const data = {
+          question: questionText,
+          question_id: `demo_q_${questionIdx + 1}`,
+          session_id: sessionId
+        };
+        setCurrentQuestion(data);
+        setTranscript((prev) => [...prev, { role: 'ai', text: data.question }]);
+        setPhase('question');
+        setTimeout(() => {
+          speakQuestion(data.question);
+        }, 400);
+      }, 800);
+      return;
+    }
+
     try {
       // Call actual REST hook from backend
       const data = await getNextQuestion(sessionId, prevAnswer);
@@ -426,6 +496,43 @@ export default function LiveInterviewPage() {
     setAnswerText('');
     setPhase('evaluating');
     setTranscript((prev) => [...prev, { role: 'user', text: textToSubmit }]);
+
+    if (sessionId.startsWith('demo')) {
+      // Simulate local evaluate for demo
+      setTimeout(() => {
+        const mockEval = {
+          technical_score: 8.0,
+          communication_score: 7.5,
+          confidence_score: 8.0,
+          overall_score: 7.8,
+          feedback: "Great answer for a demo interview! Keep practicing to access deeper insights.",
+          strengths: ["Clear response structure"],
+          weaknesses: ["Could expand on definitions"],
+          improvements: ["Provide more concrete examples"]
+        };
+        setEvaluation(mockEval);
+        setShowEval(true);
+
+        setTranscript((prev) => {
+          const copy = [...prev];
+          if (copy.length > 0) {
+            copy[copy.length - 1] = { ...copy[copy.length - 1], eval: mockEval };
+          }
+          return copy;
+        });
+
+        if (questionIdx + 1 >= MAX_QUESTIONS) {
+          setPhase('complete');
+        } else {
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
+          timeoutRef.current = setTimeout(() => {
+            setQuestionIdx((i) => i + 1);
+            loadNextQuestion(textToSubmit);
+          }, 5000);
+        }
+      }, 1500);
+      return;
+    }
 
     try {
       // Call evaluate-answer API endpoint in backend
@@ -483,10 +590,12 @@ export default function LiveInterviewPage() {
       recognitionRef.current = null;
     }
 
-    try {
-      await completeSession(sessionId);
-    } catch (e) {
-      console.error("Error finalizing session:", e);
+    if (!sessionId.startsWith('demo')) {
+      try {
+        await completeSession(sessionId);
+      } catch (e) {
+        console.error("Error finalizing session:", e);
+      }
     }
     navigate(`/report/${sessionId}`);
   };
@@ -507,133 +616,158 @@ export default function LiveInterviewPage() {
   // Render pre-interview Video Call Lobby Screen
   if (phase === 'lobby') {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-center items-center p-6 bg-gradient-to-b from-slate-950 to-slate-900 select-none animate-fade-in">
+      <motion.div 
+        initial={{ opacity: 0, x: -8 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+        className="min-h-screen bg-background text-text-primary flex flex-col justify-center items-center p-6 select-none w-full"
+      >
         <motion.div 
-          className="w-full max-w-3xl bg-slate-900/60 border border-slate-800 p-8 rounded-2xl backdrop-blur-md shadow-2xl relative overflow-hidden"
-          initial={{ opacity: 0, y: 15 }}
+          className="w-full max-w-2xl bg-surface border border-border p-8 rounded-xl shadow-lg relative overflow-hidden"
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.4 }}
         >
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500" />
-
           {/* Lobby Header */}
           <div className="flex flex-col items-center mb-8 text-center">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center mb-3 shadow-glow shadow-blue-500/20 animate-float">
-              <Brain size={24} />
+            <div className="w-12 h-12 rounded-xl border border-border bg-surface-secondary flex items-center justify-center mb-4 text-primary">
+              <Brain size={22} />
             </div>
-            <h2 className="text-2xl font-extrabold tracking-wide">Interview Lobby Room</h2>
-            <p className="text-slate-400 text-sm mt-1">Configure your sound and connect your headphones before entering</p>
+            <h2 className="text-xl font-bold tracking-tight text-text-primary">Interview Lobby Room</h2>
+            <p className="text-text-secondary text-xs mt-1">Configure your sound and verify connectivity before entering.</p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            {/* Left: Device Sound-Check */}
-            <div className="bg-slate-950/50 border border-slate-800/80 rounded-xl p-5 text-center flex flex-col items-center gap-4">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Device Calibration</span>
+          <div className="grid md:grid-cols-2 gap-8 items-stretch">
+            {/* Left: Device Calibration */}
+            <div className="bg-surface-secondary border border-border rounded-xl p-5 text-center flex flex-col items-center justify-between gap-4">
+              <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Device Calibration</span>
               
-              <div className="relative">
-                <div className={`w-20 h-20 rounded-full flex items-center justify-center bg-slate-900 border ${
-                  micActiveTest ? 'border-purple-500 bg-purple-500/10 shadow-glow shadow-purple-500/20' : 'border-slate-800'
+              <div className="relative my-2">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center bg-surface border transition-all ${
+                  micActiveTest ? 'border-primary bg-primary/5' : 'border-border'
                 }`}>
-                  <Headphones size={32} className={micActiveTest ? 'text-purple-400' : 'text-slate-500'} />
+                  <Headphones size={26} className={micActiveTest ? 'text-primary' : 'text-text-secondary'} />
                 </div>
                 {micActiveTest && (
-                  <motion.div
-                    className="absolute -inset-2 rounded-full border border-purple-500/30 animate-pulse-ring"
-                    initial={{ scale: 1, opacity: 0.6 }}
-                  />
+                  <div className="absolute -inset-2 rounded-full border border-primary/20 animate-pulse-ring" />
                 )}
               </div>
 
               <div>
-                <p className="text-xs font-bold text-slate-200">Headphone Connection Check</p>
-                <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
-                  Put on your headphones to hear the AI Interviewer and avoid echoing during response.
+                <p className="text-xs font-semibold text-text-primary">Use Headphones</p>
+                <p className="text-[10px] text-text-muted mt-1 leading-relaxed">
+                  Put on headphones to clearly hear the AI and prevent echoing.
                 </p>
               </div>
 
               {!micActiveTest ? (
                 <button
                   onClick={handleTestMic}
-                  className="px-4 py-2 border border-slate-700 hover:border-slate-500 bg-slate-900 rounded-lg text-xs font-semibold hover:text-white transition-all flex items-center gap-1.5"
+                  className="btn-secondary py-1.5 px-3 flex items-center gap-1.5 text-xs"
                 >
                   <Mic size={12} /> Test Microphone
                 </button>
               ) : (
-                <span className="text-[10px] text-green-400 font-bold bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-full flex items-center gap-1">
-                  <CheckCircle size={10} /> Mic Connected
+                <span className="text-[10px] text-success font-bold bg-success/10 border border-success/20 px-3 py-1 rounded-full flex items-center gap-1">
+                  <CheckCircle size={10} /> Mic Configured
                 </span>
               )}
             </div>
 
-            {/* Right: Join Call Trigger */}
-            <div className="flex flex-col gap-5 justify-center">
-              <div className="space-y-2">
-                <h4 className="text-sm font-bold text-slate-200">Simulation details:</h4>
-                <div className="space-y-1.5">
-                  <p className="text-xs text-slate-400 flex justify-between">
-                    <span>Active Profile:</span> <strong className="text-slate-200 capitalize">Technical</strong>
-                  </p>
-                  <p className="text-xs text-slate-400 flex justify-between">
-                    <span>Job Role Target:</span> <strong className="text-slate-200 capitalize">Software Engineer</strong>
-                  </p>
-                  <p className="text-xs text-slate-400 flex justify-between">
-                    <span>Interview Duration:</span> <strong className="text-slate-200">30 minutes</strong>
-                  </p>
+            {/* Right: Simulation details */}
+            <div className="flex flex-col gap-6 justify-between">
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-text-secondary">Simulation Parameters</h4>
+                <div className="space-y-2 border border-border rounded-lg p-3.5 bg-surface-secondary/40">
+                  <div className="text-xs text-text-secondary flex justify-between">
+                    <span>Interview Profile</span>
+                    <strong className="text-text-primary capitalize">
+                      {sessionConfig?.interview_type?.replace('_', ' ') || 'Technical'}
+                    </strong>
+                  </div>
+                  <div className="h-px bg-border" />
+                  <div className="text-xs text-text-secondary flex justify-between">
+                    <span>Target Role</span>
+                    <strong className="text-text-primary capitalize">
+                      {sessionConfig?.job_role?.replace(/_/g, ' ') || 'Software Engineer'}
+                    </strong>
+                  </div>
+                  <div className="h-px bg-border" />
+                  <div className="text-xs text-text-secondary flex justify-between">
+                    <span>Difficulty</span>
+                    <strong className="text-text-primary capitalize">
+                      {sessionConfig?.difficulty || 'Intermediate'}
+                    </strong>
+                  </div>
+                  <div className="h-px bg-border" />
+                  <div className="text-xs text-text-secondary flex justify-between">
+                    <span>Session Duration</span>
+                    <strong className="text-text-primary">
+                      {sessionConfig?.duration_minutes || '30'} Minutes
+                    </strong>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3.5 text-xs text-blue-300 leading-relaxed">
-                📢 **Important**: Clicking **"Join Interview Call"** will trigger audio question synthesis immediately. Ensure your sound volume is active!
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-[11px] text-text-secondary leading-relaxed">
+                ℹ️ **Note**: Enters the active room immediately. Ensure your speaker volume is turned up.
               </div>
 
               <button
                 onClick={handleJoinCall}
-                className="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl text-sm font-extrabold hover:shadow-glow hover:shadow-blue-500/40 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                className="btn-primary py-3 flex items-center justify-center gap-2 text-sm font-semibold w-full"
               >
-                <Video size={16} fill="white" />
+                <Video size={16} />
                 Join Interview Call
               </button>
             </div>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col overflow-hidden select-none">
+    <motion.div 
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      className="min-h-screen bg-background text-text-primary flex flex-col overflow-hidden select-none w-full"
+    >
       
       {/* ─── Premium Header HUD ─── */}
-      <div className="border-b border-slate-800/80 px-6 py-4 flex items-center justify-between bg-slate-900/40 backdrop-blur sticky top-0 z-10">
+      <div className="border-b border-border px-6 py-4 flex items-center justify-between bg-surface/50 backdrop-blur sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center shadow-glow shadow-blue-500/20">
+          <div className="w-8 h-8 rounded-lg border border-border bg-surface-secondary flex items-center justify-center text-primary">
             <Brain size={16} />
           </div>
           <div>
-            <span className="font-bold text-sm tracking-wide bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">InterviewAI Viewport</span>
-            <span className="text-xs text-slate-500 block">Active Adaptive Simulation</span>
+            <span className="font-bold text-sm tracking-tight text-text-primary">
+              InterviewAI Viewport — <span className="text-primary capitalize">{sessionConfig?.difficulty || 'Intermediate'}</span>
+            </span>
+            <span className="text-[10px] text-text-muted block">Active Adaptive Simulation</span>
           </div>
         </div>
 
         <div className="flex items-center gap-6">
           {/* Progress Counters */}
-          <div className="bg-slate-900/60 border border-slate-800 px-3.5 py-1.5 rounded-lg flex items-center gap-2 text-xs text-slate-300 font-medium">
-            <MessageCircle size={14} className="text-purple-400" />
+          <div className="bg-surface-secondary border border-border px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-xs text-text-secondary font-medium">
+            <MessageCircle size={14} className="text-primary" />
             Question {questionIdx + 1} of {MAX_QUESTIONS}
           </div>
 
           {/* Time Remaining */}
-          <div className={`bg-slate-900/60 border border-slate-800 px-3.5 py-1.5 rounded-lg flex items-center gap-2 font-mono text-sm font-bold ${
-            isLowTime ? 'text-red-400 shadow-glow shadow-red-500/20 animate-pulse' : 'text-slate-300'
+          <div className={`bg-surface-secondary border border-border px-3 py-1.5 rounded-lg flex items-center gap-2 font-mono text-sm font-semibold ${
+            isLowTime ? 'text-danger animate-pulse' : 'text-text-primary'
           }`}>
-            <Clock size={15} className={isLowTime ? 'text-red-400' : 'text-slate-400'} />
+            <Clock size={14} className={isLowTime ? 'text-danger' : 'text-text-secondary'} />
             {formatTime(remaining)}
           </div>
 
           {/* Terminate Session */}
           <button
             onClick={handleFinish}
-            className="px-4 py-1.5 text-xs font-semibold bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-all flex items-center gap-1.5"
+            className="px-3.5 py-1.5 text-xs font-semibold bg-danger/10 border border-danger/20 hover:border-danger/30 text-danger rounded-lg transition-all flex items-center gap-1.5"
           >
             <LogOut size={13} />
             End Session
@@ -642,69 +776,86 @@ export default function LiveInterviewPage() {
       </div>
 
       {/* Progress HUD bar */}
-      <div className="h-1 bg-slate-900">
+      <div className="h-1 bg-surface-secondary">
         <motion.div 
-          className="h-full bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500 shadow-glow shadow-purple-500/50" 
+          className="h-full bg-primary" 
           animate={{ width: `${progress}%` }} 
           transition={{ duration: 0.5 }} 
         />
       </div>
 
       {/* ─── Immersive Main Call Viewport ─── */}
-      <div className="flex-1 flex relative overflow-hidden bg-gradient-to-b from-slate-950 to-slate-900">
+      <div className="flex-1 flex relative overflow-hidden bg-background">
         
         {/* Cinematic centered visualizer portal */}
         <div className="flex-1 flex flex-col justify-center items-center p-8 relative">
           
           {/* Animated circular background fields */}
-          <div className="absolute inset-0 flex justify-center items-center pointer-events-none opacity-20">
+          <div className="absolute inset-0 flex justify-center items-center pointer-events-none opacity-25">
             <motion.div 
-              className="w-[450px] h-[450px] rounded-full border border-blue-500/20 absolute"
-              animate={isSpeaking ? { scale: [1, 1.15, 1], opacity: [0.2, 0.4, 0.2] } : {}}
+              className="w-[400px] h-[400px] rounded-full border border-primary/10 absolute"
+              animate={isSpeaking ? { scale: [1, 1.12, 1], opacity: [0.15, 0.3, 0.15] } : {}}
               transition={{ duration: 2.5, repeat: Infinity }}
             />
             <motion.div 
-              className="w-[300px] h-[300px] rounded-full border border-purple-500/10 absolute"
-              animate={isSpeaking ? { scale: [1.1, 0.95, 1.1], opacity: [0.1, 0.3, 0.1] } : {}}
+              className="w-[280px] h-[280px] rounded-full border border-primary/5 absolute"
+              animate={isSpeaking ? { scale: [1.08, 0.96, 1.08], opacity: [0.08, 0.2, 0.08] } : {}}
               transition={{ duration: 3, repeat: Infinity }}
             />
           </div>
 
           <AnimatePresence mode="wait">
-            {phase === 'loading' ? (
+            {phase === 'loading' || phase === 'evaluating' ? (
               <motion.div 
-                key="loading-orb" 
-                className="flex flex-col items-center gap-4"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
+                key="thinking-orb" 
+                className="flex flex-col items-center gap-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <div className="relative flex justify-center items-center">
-                  <div className="w-24 h-24 rounded-full bg-blue-500/10 border-2 border-blue-500/30 flex items-center justify-center">
-                    <Loader2 size={36} className="animate-spin text-blue-400" />
+                {/* Pulsing container instead of spinner */}
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <motion.div 
+                    className="absolute inset-0 bg-primary/10 border border-primary/20 rounded-full"
+                    animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                  <div className="w-12 h-12 rounded-full bg-surface border border-border flex items-center justify-center shadow-md">
+                    <Brain size={20} className="text-primary animate-pulse" />
                   </div>
                 </div>
-                <p className="text-sm font-semibold text-blue-300 tracking-widest uppercase">Analyzing Progress...</p>
+                
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
+                    {thinkingTexts[thinkingTextIdx]}
+                    <span className="flex gap-0.5">
+                      <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
+                      <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
+                      <span className="w-1 h-1 bg-primary rounded-full animate-bounce" />
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-text-muted uppercase tracking-wider">Please stand by</p>
+                </div>
               </motion.div>
             ) : phase === 'complete' ? (
               <motion.div 
                 key="complete-panel" 
-                className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 text-center max-w-md backdrop-blur shadow-glow shadow-green-500/10 relative z-10"
+                className="bg-surface border border-border rounded-xl p-8 text-center max-w-sm relative z-10 shadow-lg"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
-                <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4 border border-green-500/50">
-                  <CheckCircle size={32} className="text-green-400" />
+                <div className="w-12 h-12 rounded-full bg-success/15 border border-success/30 flex items-center justify-center mx-auto mb-4 text-success">
+                  <CheckCircle size={24} />
                 </div>
-                <h3 className="font-extrabold text-2xl mb-2 bg-gradient-to-r from-green-400 to-teal-400 bg-clip-text text-transparent">Interview Complete!</h3>
-                <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+                <h3 className="font-bold text-lg mb-2 text-text-primary">Interview Complete!</h3>
+                <p className="text-text-secondary text-xs mb-6 leading-relaxed">
                   Excellent practice. Our scoring models have compiled your communication, technical, and speaking metrics.
                 </p>
                 <button
                   onClick={handleFinish}
-                  className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl text-sm font-bold hover:shadow-glow hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-2"
+                  className="btn-primary w-full py-2.5 flex items-center justify-center gap-2 text-xs font-semibold"
                 >
-                  View Performance Analytics <ChevronRight size={16} />
+                  View Performance Analytics <ChevronRight size={14} />
                 </button>
               </motion.div>
             ) : (
@@ -717,24 +868,19 @@ export default function LiveInterviewPage() {
                 {/* Immersive centered virtual avatar */}
                 <div className="relative">
                   <motion.div
-                    className={`w-32 h-32 rounded-full bg-gradient-to-tr from-slate-900 via-blue-950 to-purple-950 flex items-center justify-center shadow-2xl border ${
-                      isSpeaking ? 'border-blue-400/80 shadow-glow shadow-blue-500/40 animate-pulse' : 'border-slate-800'
+                    className={`w-28 h-28 rounded-full bg-surface flex items-center justify-center border shadow-xl transition-all duration-300 ${
+                      isSpeaking ? 'border-primary' : isRecording ? 'border-danger' : 'border-border'
                     }`}
-                    animate={isSpeaking ? { scale: [1, 1.04, 1] } : {}}
-                    transition={{ duration: 1.5, repeat: isSpeaking ? Infinity : 0 }}
+                    animate={isSpeaking ? { scale: [1, 1.03, 1] } : isRecording ? { scale: [1, 1.02, 1] } : {}}
+                    transition={{ duration: 1.5, repeat: (isSpeaking || isRecording) ? Infinity : 0 }}
                   >
-                    <div className="w-28 h-28 rounded-full bg-slate-950 flex items-center justify-center relative overflow-hidden">
+                    <div className="w-24 h-24 rounded-full bg-surface-secondary flex items-center justify-center relative overflow-hidden">
                       {isSpeaking ? (
-                        <Brain size={48} className="text-blue-400 animate-pulse-slow" />
+                        <Brain size={36} className="text-primary animate-pulse-slow" />
                       ) : isRecording ? (
-                        <Brain size={48} className="text-purple-400 animate-bounce" />
+                        <Brain size={36} className="text-danger animate-pulse" />
                       ) : (
-                        <Brain size={48} className="text-slate-600" />
-                      )}
-                      
-                      {/* Interactive dynamic background lighting */}
-                      {isSpeaking && (
-                        <div className="absolute inset-0 bg-blue-500/10 mix-blend-color-dodge filter blur-md animate-pulse" />
+                        <Brain size={36} className="text-text-muted" />
                       )}
                     </div>
                   </motion.div>
@@ -742,45 +888,65 @@ export default function LiveInterviewPage() {
                   {/* Glowing active speak ring */}
                   {isSpeaking && (
                     <motion.div
-                      className="absolute -inset-3 rounded-full border-2 border-blue-400/30"
-                      animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0, 0.5] }}
+                      className="absolute -inset-2.5 rounded-full border border-primary/20"
+                      animate={{ scale: [1, 1.1, 1], opacity: [0.4, 0, 0.4] }}
                       transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  )}
+
+                  {/* Pulsing microphone ring (Voice Mode Active) */}
+                  {isRecording && (
+                    <motion.div
+                      className="absolute -inset-2.5 rounded-full border border-danger/30"
+                      animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.1, 0.5] }}
+                      transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
                     />
                   )}
                 </div>
 
                 <div className="text-center">
-                  <p className="text-sm font-bold uppercase tracking-wider text-slate-300">AI Virtual Interviewer</p>
-                  <p className={`text-xs font-semibold ${isSpeaking ? 'text-blue-400 animate-pulse' : isRecording ? 'text-purple-400' : 'text-slate-500'}`}>
+                  <p className="text-xs font-bold uppercase tracking-wider text-text-secondary">AI Virtual Interviewer</p>
+                  <p className={`text-[10px] font-semibold mt-0.5 ${isSpeaking ? 'text-primary' : isRecording ? 'text-danger' : 'text-text-muted'}`}>
                     {isSpeaking ? 'Speaking to headphones…' : isRecording ? 'Listening...' : 'Standing by'}
                   </p>
                 </div>
 
-                {/* ─── speaking Equalizer waveform bars ─── */}
-                <div className="h-10 flex items-center gap-1.5 justify-center mt-2 w-64">
+                {/* Waveform Equalizer */}
+                <div className="h-8 flex items-center gap-1.5 justify-center mt-2 w-64">
                   {isSpeaking ? (
-                    // Active AI voice output waves
                     Array.from({ length: 15 }).map((_, idx) => {
                       const dur = 0.5 + Math.random() * 0.8;
                       return (
                         <motion.div
                           key={idx}
-                          className="w-1 bg-gradient-to-t from-blue-500 to-purple-600 rounded-full"
-                          animate={{ height: [8, 36, 8] }}
+                          className="w-1 bg-primary rounded-full"
+                          animate={{ height: [6, 28, 6] }}
                           transition={{ duration: dur, repeat: Infinity, ease: "easeInOut" }}
                         />
                       );
                     })
                   ) : isRecording ? (
-                    // Listening wait wave pulses
-                    <div className="text-xs text-purple-400 font-semibold tracking-wide flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 bg-purple-500 rounded-full animate-ping" />
-                      Speak your response...
+                    <div className="flex items-center gap-1 h-6">
+                      {Array.from({ length: 11 }).map((_, idx) => {
+                        const baseHeight = idx === 5 ? 24 : idx % 2 === 0 ? 8 : 16;
+                        return (
+                          <motion.div
+                            key={idx}
+                            className="w-1 bg-danger rounded-full"
+                            animate={{ height: [4, baseHeight, 4] }}
+                            transition={{ 
+                              duration: 0.5 + Math.random() * 0.4, 
+                              repeat: Infinity, 
+                              ease: "easeInOut",
+                              delay: idx * 0.04
+                            }}
+                          />
+                        );
+                      })}
                     </div>
                   ) : (
-                    // Silent flat waves
                     Array.from({ length: 15 }).map((_, idx) => (
-                      <div key={idx} className="w-1 h-2 bg-slate-800 rounded-full" />
+                      <div key={idx} className="w-1 h-1.5 bg-border rounded-full" />
                     ))
                   )}
                 </div>
@@ -788,61 +954,61 @@ export default function LiveInterviewPage() {
             )}
           </AnimatePresence>
 
-          {/* ─── Captions / Subtitles Overlay ─── */}
+          {/* Captions / Subtitles Overlay */}
           {phase === 'question' && currentQuestion && (
             <motion.div 
-              className="absolute bottom-6 left-8 right-8 bg-slate-950/80 border border-slate-900/60 px-6 py-4 rounded-xl text-center backdrop-blur max-w-3xl mx-auto shadow-2xl"
-              initial={{ opacity: 0, y: 15 }}
+              className="absolute bottom-6 left-6 right-6 bg-surface border border-border px-6 py-4 rounded-xl text-center backdrop-blur-md max-w-2xl mx-auto shadow-lg"
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
             >
-              <p className="text-xs text-blue-400 font-bold uppercase tracking-widest mb-1.5 flex items-center justify-center gap-1">
+              <p className="text-[10px] text-primary font-bold uppercase tracking-widest mb-1.5 flex items-center justify-center gap-1">
                 <Volume2 size={12} /> Spoken Question
               </p>
-              <p className="text-base text-slate-100 font-medium leading-relaxed">
+              <p className="text-sm text-text-primary font-medium leading-relaxed">
                 "{currentQuestion.question}"
               </p>
             </motion.div>
           )}
 
-          {/* ─── Active verbal response overlay ─── */}
+          {/* Active verbal response overlay */}
           {isRecording && answerText && (
             <motion.div 
-              className="absolute bottom-6 left-8 right-8 bg-purple-950/30 border border-purple-500/20 px-6 py-4 rounded-xl text-center backdrop-blur max-w-2xl mx-auto"
+              className="absolute bottom-6 left-6 right-6 bg-primary/5 border border-primary/20 px-6 py-4 rounded-xl text-center backdrop-blur-md max-w-xl mx-auto"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              <p className="text-xs text-purple-400 font-bold uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
+              <p className="text-[10px] text-primary font-bold uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
                 <Mic size={12} /> Live Speech Subtitles
               </p>
-              <p className="text-sm text-purple-200 leading-relaxed italic">
+              <p className="text-xs text-text-secondary leading-relaxed italic">
                 "{answerText}..."
               </p>
             </motion.div>
           )}
 
-          {/* ─── Evaluation Pill (Popup on Speak) ─── */}
+          {/* Immediate Evaluation Overlay */}
           {showEval && evaluation && (
             <motion.div 
-              className="absolute top-6 left-8 right-8 bg-slate-900/90 border border-slate-800 p-4 rounded-xl backdrop-blur max-w-xl mx-auto shadow-2xl flex items-center justify-between"
-              initial={{ opacity: 0, y: -15 }}
+              className="absolute top-6 left-6 right-6 bg-surface border border-border p-4 rounded-xl backdrop-blur-md max-w-lg mx-auto shadow-lg flex items-center justify-between"
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
+              exit={{ opacity: 0, y: -10 }}
             >
-              <div className="flex-1 pr-4">
-                <p className="text-xs text-green-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <BarChart2 size={13} /> Immediate Evaluation
+              <div className="flex-1 pr-4 min-w-0">
+                <p className="text-[10px] text-success font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <BarChart2 size={12} /> Immediate Feedback
                 </p>
-                <p className="text-xs text-slate-300 leading-relaxed truncate-2-lines">{evaluation.feedback}</p>
+                <p className="text-xs text-text-secondary leading-relaxed truncate">{evaluation.feedback}</p>
               </div>
-              <div className="flex gap-4 border-l border-slate-800 pl-4 items-center">
+              <div className="flex gap-4 border-l border-border pl-4 items-center">
                 <div className="text-center">
-                  <span className="text-sm font-bold text-blue-400 block">{Math.round(evaluation.technical_score)}/10</span>
-                  <span className="text-[10px] text-slate-500 block uppercase">Tech</span>
+                  <span className="text-xs font-mono font-bold text-primary block">{Math.round(evaluation.technical_score)}/10</span>
+                  <span className="text-[9px] text-text-muted block uppercase">Tech</span>
                 </div>
                 <div className="text-center">
-                  <span className="text-sm font-bold text-purple-400 block">{Math.round(evaluation.communication_score)}/10</span>
-                  <span className="text-[10px] text-slate-500 block uppercase">Comm</span>
+                  <span className="text-xs font-mono font-bold text-success block">{Math.round(evaluation.communication_score)}/10</span>
+                  <span className="text-[9px] text-text-muted block uppercase">Comm</span>
                 </div>
               </div>
             </motion.div>
@@ -853,63 +1019,72 @@ export default function LiveInterviewPage() {
         <AnimatePresence>
           {showTextDrawer && (
             <motion.div 
-              className="w-96 border-l border-slate-800 bg-slate-900/60 backdrop-blur flex flex-col h-full shadow-2xl relative z-10"
+              className="w-96 border-l border-border bg-surface flex flex-col h-full shadow-lg relative z-10"
               initial={{ x: 380, opacity: 0.8 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 380, opacity: 0.8 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
             >
-              <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/20">
+              <div className="p-4 border-b border-border flex justify-between items-center bg-surface-secondary/40">
                 <div className="flex items-center gap-2">
-                  <Keyboard size={16} className="text-blue-400" />
-                  <span className="font-bold text-sm tracking-wide">Transcript & Text Input</span>
+                  <Keyboard size={15} className="text-primary" />
+                  <span className="font-bold text-xs tracking-tight text-text-primary">Transcript & Text Input</span>
                 </div>
                 <button 
                   onClick={() => setShowTextDrawer(false)}
-                  className="text-xs px-2.5 py-1 border border-slate-700 rounded text-slate-400 hover:text-white hover:border-slate-500 transition-all"
+                  className="btn-secondary py-1 px-2.5 text-[10px]"
                 >
                   Hide
                 </button>
               </div>
 
-              {/* Chat Timeline scrolling logs */}
+              {/* Chat timeline logs */}
               <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">
                 {transcript.length === 0 ? (
-                  <p className="text-xs text-slate-500 text-center py-10">No questions loaded yet.</p>
+                  <p className="text-xs text-text-muted text-center py-10">No questions loaded yet.</p>
                 ) : (
                   transcript.map((msg, i) => (
-                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <motion.div 
+                      key={i} 
+                      className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      initial={{ opacity: 0, y: msg.role === 'user' ? 0 : 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ 
+                        duration: msg.role === 'user' ? 0.15 : 0.25, 
+                        ease: "easeOut"
+                      }}
+                    >
                       <div className={`max-w-[260px] ${
                         msg.role === 'ai' 
-                          ? 'bg-slate-800/80 border border-slate-750 text-slate-200 rounded-2xl rounded-tl-sm'
-                          : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl rounded-tr-sm'
+                          ? 'bg-surface-secondary border border-border text-text-primary rounded-xl rounded-tl-none'
+                          : 'bg-primary text-white rounded-xl rounded-tr-none'
                       } px-3.5 py-2.5 text-xs leading-relaxed`}>
-                        <p className="font-semibold text-[10px] opacity-60 mb-1">
+                        <p className={`font-mono text-[9px] uppercase tracking-wider mb-1 ${msg.role === 'ai' ? 'text-primary' : 'text-white/60'}`}>
                           {msg.role === 'ai' ? 'AI INTERVIEWER' : 'YOU'}
                         </p>
                         {msg.text}
                         
                         {msg.role === 'user' && msg.eval && (
-                          <div className="flex gap-2.5 border-t border-white/10 mt-1.5 pt-1.5 text-[9px] text-white/70">
-                            <span>Tech: <strong className="text-white">{Math.round(msg.eval.technical_score)}/10</strong></span>
-                            <span>Comm: <strong className="text-white">{Math.round(msg.eval.communication_score)}/10</strong></span>
+                          <div className="flex gap-2.5 border-t border-white/10 mt-2 pt-2 text-[9px] text-white/70">
+                            <span>Tech: <strong className="text-white font-mono">{Math.round(msg.eval.technical_score)}/10</strong></span>
+                            <span>Comm: <strong className="text-white font-mono">{Math.round(msg.eval.communication_score)}/10</strong></span>
                           </div>
                         )}
                       </div>
-                    </div>
+                    </motion.div>
                   ))
                 )}
               </div>
 
-              {/* Manual input box for texting */}
-              <div className="p-4 border-t border-slate-800 bg-slate-950/40">
+              {/* Input console */}
+              <div className="p-4 border-t border-border bg-surface-secondary/40">
                 <div className="flex gap-2 items-end">
                   <textarea
                     value={answerText}
                     onChange={(e) => setAnswerText(e.target.value)}
-                    placeholder="Type your answer here..."
+                    placeholder="Type your response..."
                     rows={2}
-                    className="flex-1 px-3 py-2 bg-slate-850 border border-slate-700 rounded-xl focus:border-blue-500 focus:outline-none transition-colors text-xs text-white placeholder-slate-500 resize-none"
+                    className="input-field resize-none py-1.5"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -920,61 +1095,60 @@ export default function LiveInterviewPage() {
                   <button
                     onClick={() => handleSubmitAnswer()}
                     disabled={!answerText.trim() || phase === 'loading' || phase === 'evaluating'}
-                    className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 disabled:opacity-40"
+                    className="btn-primary w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 disabled:opacity-40"
                   >
-                    <Send size={14} />
+                    <Send size={13} />
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-500 text-center mt-1.5">Enter to submit · Shift+Enter for newline</p>
+                <p className="text-[9px] text-text-muted text-center mt-2">Enter to submit · Shift+Enter for newline</p>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* ─── Floating Picture-in-Picture Candidate Mic/Cam View ─── */}
-        <div className="absolute bottom-6 right-6 w-36 h-24 rounded-xl border border-slate-800 bg-slate-950/90 shadow-2xl overflow-hidden flex flex-col items-center justify-center text-center p-3 z-10 backdrop-blur-md">
+        {/* Floating Candidate Mic View */}
+        <div className="absolute bottom-6 right-6 w-32 h-20 rounded-xl border border-border bg-surface/95 shadow-md flex flex-col items-center justify-center text-center p-3 z-10 backdrop-blur-md">
           <div className="relative mb-1">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 border ${isRecording ? 'border-purple-500' : 'border-slate-700'}`}>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center bg-surface-secondary border transition-all ${isRecording ? 'border-primary' : 'border-border'}`}>
               {isRecording ? (
-                <Mic size={14} className="text-purple-400 animate-pulse" />
+                <Mic size={12} className="text-primary animate-pulse" />
               ) : (
-                <MicOff size={14} className="text-slate-500" />
+                <MicOff size={12} className="text-text-muted" />
               )}
             </div>
             {isRecording && (
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-ping" />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-danger rounded-full animate-ping" />
             )}
           </div>
-          <span className="text-[10px] font-bold text-slate-300 block">Candidate Mic</span>
-          <span className="text-[8px] text-slate-500 block truncate w-full">
-            {isRecording ? 'Capturing Audio...' : 'Muted'}
+          <span className="text-[9px] font-bold text-text-primary block">Candidate Mic</span>
+          <span className="text-[8px] text-text-muted block truncate w-full mt-0.5">
+            {isRecording ? 'Active' : 'Muted'}
           </span>
         </div>
       </div>
 
-      {/* ─── Floating Settings Panel Overlay ─── */}
+      {/* Floating Settings Panel */}
       <AnimatePresence>
         {showSettingsDropdown && (
           <motion.div 
-            className="absolute bottom-24 left-6 bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-2xl w-64 z-20 backdrop-blur"
-            initial={{ opacity: 0, y: 15 }}
+            className="absolute bottom-24 left-6 bg-surface border border-border p-4 rounded-xl shadow-lg w-64 z-20 backdrop-blur-md"
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 15 }}
+            exit={{ opacity: 0, y: 10 }}
           >
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Interviewer Voice Settings</h4>
+            <h4 className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-3">Interviewer Speed</h4>
             
             {/* Speed selection */}
             <div className="mb-4">
-              <label className="text-[10px] text-slate-400 block mb-1">Text-to-Speech Speed</label>
               <div className="flex gap-2">
                 {[0.8, 1.0, 1.2].map((s) => (
                   <button
                     key={s}
                     onClick={() => setTtsSpeed(s)}
-                    className={`flex-1 py-1 text-xs rounded border font-semibold transition-all ${
+                    className={`flex-1 py-1 text-xs rounded border transition-all font-medium ${
                       ttsSpeed === s 
-                        ? 'bg-blue-500 border-blue-400 text-white' 
-                        : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-white'
+                        ? 'bg-primary border-primary text-white' 
+                        : 'border-border bg-surface-secondary text-text-secondary hover:text-text-primary'
                     }`}
                   >
                     {s === 1.0 ? 'Normal' : `${s}x`}
@@ -984,19 +1158,19 @@ export default function LiveInterviewPage() {
             </div>
 
             {/* Hands-Free Activation toggle */}
-            <div className="flex items-center justify-between border-t border-slate-800 pt-3">
+            <div className="flex items-center justify-between border-t border-border pt-3">
               <div>
-                <span className="text-xs font-semibold text-slate-200 block">Auto-Listen (Hands-Free)</span>
-                <span className="text-[9px] text-slate-500 block">Microphone wakes automatically</span>
+                <span className="text-xs font-semibold text-text-primary block">Auto-Listen</span>
+                <span className="text-[8px] text-text-muted block mt-0.5">Microphone triggers automatically</span>
               </div>
               <button
                 onClick={() => setVoiceActivation(!voiceActivation)}
-                className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
-                  voiceActivation ? 'bg-purple-600' : 'bg-slate-750'
+                className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none ${
+                  voiceActivation ? 'bg-primary' : 'bg-surface-secondary border border-border'
                 }`}
               >
-                <div className={`bg-white w-4 h-4 rounded-full shadow transform transition-transform duration-200 ${
-                  voiceActivation ? 'translate-x-4' : 'translate-x-0'
+                <div className={`bg-white w-3.5 h-3.5 rounded-full shadow transform transition-transform duration-200 ${
+                  voiceActivation ? 'translate-x-3.5' : 'translate-x-0'
                 }`} />
               </button>
             </div>
@@ -1004,22 +1178,22 @@ export default function LiveInterviewPage() {
         )}
       </AnimatePresence>
 
-      {/* ─── Bottom Cinematic Control Panel HUD ─── */}
+      {/* Bottom Cinematic Control Panel HUD */}
       {phase !== 'complete' && (
-        <div className="border-t border-slate-900 bg-slate-950 px-6 py-5 flex items-center justify-between z-10 sticky bottom-0">
+        <div className="border-t border-border bg-surface px-6 py-5 flex items-center justify-between z-10 sticky bottom-0">
           
-          {/* Settings trigger */}
+          {/* Settings triggers */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowSettingsDropdown(!showSettingsDropdown)}
               className={`p-2.5 rounded-lg border transition-all ${
                 showSettingsDropdown 
-                  ? 'bg-slate-800 border-slate-700 text-white' 
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-surface-secondary border-border text-text-primary' 
+                  : 'bg-surface border-border text-text-secondary hover:text-text-primary'
               }`}
               title="Voice Settings"
             >
-              <Settings size={18} />
+              <Settings size={16} />
             </button>
 
             {/* TTS Mute Toggle */}
@@ -1034,12 +1208,12 @@ export default function LiveInterviewPage() {
               }}
               className={`p-2.5 rounded-lg border transition-all ${
                 isMuted 
-                  ? 'bg-red-500/10 border-red-500/30 text-red-400' 
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-danger/10 border-danger/30 text-danger' 
+                  : 'bg-surface border-border text-text-secondary hover:text-text-primary'
               }`}
               title={isMuted ? 'Unmute AI Voice' : 'Mute AI Voice'}
             >
-              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
           </div>
 
@@ -1048,16 +1222,16 @@ export default function LiveInterviewPage() {
             <motion.button
               onClick={handleMicToggle}
               disabled={phase === 'loading' || phase === 'evaluating'}
-              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed relative ${
+              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed relative ${
                 isRecording
-                  ? 'bg-red-500 text-white shadow-glow shadow-red-500/40 border border-red-400/50'
-                  : 'bg-gradient-to-tr from-blue-500 to-purple-600 text-white shadow-glow shadow-blue-500/30'
+                  ? 'bg-danger text-white border border-danger/50 shadow-md'
+                  : 'bg-primary hover:bg-primary-hover text-white shadow-md'
               }`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
               title={isRecording ? 'Stop Recording' : 'Start Recording'}
             >
-              {isRecording ? <Square size={20} fill="white" /> : <Mic size={20} />}
+              {isRecording ? <Square size={16} fill="white" /> : <Mic size={16} />}
               
               {/* Outer pulsing red wave */}
               {isRecording && (
@@ -1065,12 +1239,12 @@ export default function LiveInterviewPage() {
               )}
             </motion.button>
             
-            {/* Quick manual submit verbal response */}
+            {/* Quick manual submit response */}
             {isRecording && answerText && (
               <motion.button
                 onClick={() => handleSubmitAnswer()}
-                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg hover:shadow-lg transition-all"
-                initial={{ opacity: 0, x: -10 }}
+                className="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
+                initial={{ opacity: 0, x: -5 }}
                 animate={{ opacity: 1, x: 0 }}
               >
                 Submit Answer
@@ -1082,18 +1256,18 @@ export default function LiveInterviewPage() {
           <div>
             <button
               onClick={() => setShowTextDrawer(!showTextDrawer)}
-              className={`px-4 py-2 rounded-lg border transition-all text-xs font-bold flex items-center gap-1.5 ${
+              className={`px-3.5 py-2 rounded-lg border transition-all text-xs font-semibold flex items-center gap-1.5 ${
                 showTextDrawer 
-                  ? 'bg-blue-500 border-blue-400 text-white shadow-glow shadow-blue-500/20' 
-                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-primary border-primary text-white' 
+                  : 'bg-surface border-border text-text-secondary hover:text-text-primary'
               }`}
             >
-              <Keyboard size={15} />
+              <Keyboard size={14} />
               {showTextDrawer ? 'Cinematic Mode' : 'Text Input Fallback'}
             </button>
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

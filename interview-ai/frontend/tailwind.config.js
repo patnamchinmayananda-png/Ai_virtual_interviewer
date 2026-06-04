@@ -7,12 +7,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        slate: {
-          950: '#020617',
+        background: '#0A0A0A',
+        surface: '#111111',
+        'surface-secondary': '#18181B',
+        border: '#27272A',
+        primary: {
+          DEFAULT: '#5E6AD2',
+          hover: '#707BE6',
+        },
+        success: '#22C55E',
+        warning: '#F59E0B',
+        danger: '#EF4444',
+        text: {
+          primary: '#FAFAFA',
+          secondary: '#A1A1AA',
+          muted: '#71717A',
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'Geist', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       animation: {
@@ -21,11 +34,6 @@ export default {
       },
       backdropBlur: {
         xs: '2px',
-      },
-      boxShadow: {
-        'glow-blue': '0 0 20px rgba(59, 130, 246, 0.4)',
-        'glow-purple': '0 0 20px rgba(139, 92, 246, 0.4)',
-        'glow-green': '0 0 20px rgba(34, 197, 94, 0.3)',
       },
     },
   },

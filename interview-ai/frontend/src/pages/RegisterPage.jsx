@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function RegisterPage() {
@@ -26,7 +26,7 @@ export default function RegisterPage() {
   };
 
   const strength = passwordStrength(formData.password);
-  const strengthColors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500'];
+  const strengthColors = ['bg-danger', 'bg-warning', 'bg-warning', 'bg-success'];
   const strengthLabels = ['Weak', 'Fair', 'Good', 'Strong'];
 
   const handleChange = (e) => {
@@ -61,107 +61,111 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center px-4 py-12">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute top-1/4 right-1/4 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl"
-          animate={{ y: [0, -40, 0] }}
-          transition={{ duration: 18, repeat: Infinity }}
-        />
-        <motion.div
-          className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"
-          animate={{ y: [0, 40, 0] }}
-          transition={{ duration: 22, repeat: Infinity }}
-        />
-      </div>
-
+    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12 font-sans select-none">
       <motion.div
-        className="relative z-10 w-full max-w-md"
-        initial={{ opacity: 0, y: 20 }}
+        className="w-full max-w-[400px]"
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
       >
-        <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-2xl p-8 shadow-2xl">
-          <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <User size={24} className="text-white" />
-            </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-              Create Account
+        {/* Card Panel */}
+        <div className="bg-surface border border-border rounded-xl p-8 shadow-sm">
+          {/* Header */}
+          <div className="mb-8">
+            <Link to="/" className="inline-flex items-center gap-2 mb-6">
+              <div className="w-8 h-8 bg-primary rounded flex items-center justify-center text-white">
+                <span className="font-bold text-sm tracking-tight">VI</span>
+              </div>
+              <span className="text-sm font-semibold tracking-tight text-text-primary">
+                Virtual Interviewer
+              </span>
+            </Link>
+            <h1 className="text-xl font-medium text-text-primary tracking-tight mb-1.5">
+              Create an account
             </h1>
-            <p className="text-slate-400 text-sm">Start mastering interviews today</p>
+            <p className="text-text-secondary text-xs leading-relaxed">
+              Start practicing technical and behavioral interviews today.
+            </p>
           </div>
 
+          {/* Error Alert */}
           {localError && (
             <motion.div
-              className="mb-5 p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex gap-3"
-              initial={{ opacity: 0, y: -10 }}
+              className="mb-5 p-3 bg-danger/10 border border-danger/20 rounded-lg flex gap-2.5 items-start"
+              initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-red-400 text-sm">{localError}</p>
+              <AlertCircle size={15} className="text-danger flex-shrink-0 mt-0.5" />
+              <p className="text-danger text-xs leading-relaxed">{localError}</p>
             </motion.div>
           )}
 
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Full Name */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Full Name</label>
-              <div className="relative">
-                <User size={16} className="absolute left-3 top-3.5 text-slate-500" />
-                <input
-                  type="text"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-700/30 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none transition-colors text-white placeholder-slate-500 text-sm"
-                  placeholder="John Doe"
-                />
-              </div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                Full Name
+              </label>
+              <input
+                type="text"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="John Doe"
+                required
+              />
             </div>
 
-            {/* Email */}
+            {/* Email Address */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Email Address</label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3 top-3.5 text-slate-500" />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-700/30 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none transition-colors text-white placeholder-slate-500 text-sm"
-                  placeholder="you@example.com"
-                />
-              </div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                Email Address
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="name@example.com"
+                required
+              />
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3 top-3.5 text-slate-500" />
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-700/30 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none transition-colors text-white placeholder-slate-500 text-sm"
-                  placeholder="At least 8 characters"
-                />
-              </div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="input-field"
+                placeholder="At least 8 characters"
+                required
+              />
+              
               {formData.password && (
                 <div className="mt-2 space-y-1">
                   <div className="flex gap-1">
                     {[0, 1, 2, 3].map((i) => (
                       <div
                         key={i}
-                        className={`h-1 flex-1 rounded-full transition-all ${i < strength ? strengthColors[strength - 1] : 'bg-slate-600'}`}
+                        className={`h-1 flex-1 rounded-full transition-all ${
+                          i < strength ? strengthColors[strength - 1] : 'bg-surface-secondary'
+                        }`}
                       />
                     ))}
                   </div>
-                  <p className="text-xs text-slate-400">
-                    Strength: <span className={`font-medium text-${['red', 'orange', 'yellow', 'green'][strength - 1]}-400`}>{strengthLabels[strength - 1] || 'Weak'}</span>
+                  <p className="text-[10px] text-text-muted">
+                    Strength:{' '}
+                    <span className="font-semibold text-text-secondary">
+                      {strengthLabels[strength - 1] || 'Weak'}
+                    </span>
                   </p>
                 </div>
               )}
@@ -169,43 +173,56 @@ export default function RegisterPage() {
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Confirm Password</label>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                Confirm Password
+              </label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3 top-3.5 text-slate-500" />
                 <input
                   type="password"
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-700/30 border border-slate-600 rounded-lg focus:border-blue-500 focus:outline-none transition-colors text-white placeholder-slate-500 text-sm"
+                  className="input-field pr-9"
                   placeholder="Repeat password"
+                  required
                 />
                 {formData.confirmPassword && formData.password === formData.confirmPassword && (
-                  <CheckCircle size={16} className="absolute right-3 top-3.5 text-green-400" />
+                  <CheckCircle size={14} className="absolute right-3 top-3 text-success" />
                 )}
               </div>
             </div>
 
-            <p className="text-xs text-slate-500">
-              By registering, you agree to our{' '}
-              <a href="#" className="text-blue-400 hover:underline">Terms</a> and{' '}
-              <a href="#" className="text-blue-400 hover:underline">Privacy Policy</a>.
+            <p className="text-[10px] text-text-muted leading-relaxed">
+              By creating an account, you agree to our{' '}
+              <a href="#" className="text-text-secondary hover:text-text-primary transition-colors underline">Terms of Service</a> and{' '}
+              <a href="#" className="text-text-secondary hover:text-text-primary transition-colors underline">Privacy Policy</a>.
             </p>
 
-            <motion.button
+            {/* Submit Button */}
+            <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg font-semibold text-white hover:shadow-lg hover:shadow-blue-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              className="w-full btn-primary mt-6 flex items-center justify-center gap-1.5 group"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
-            </motion.button>
+              {!loading && <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />}
+            </button>
           </form>
 
-          <p className="text-center text-slate-400 text-sm mt-6">
+          {/* Divider */}
+          <div className="my-6 flex items-center gap-3">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-text-muted text-[10px] uppercase tracking-wider font-mono">or</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          {/* Sign In Link */}
+          <p className="text-center text-text-secondary text-xs">
             Already have an account?{' '}
-            <Link to="/login" className="text-blue-400 hover:text-blue-300 font-semibold transition-colors">
+            <Link
+              to="/login"
+              className="text-primary hover:text-primary-hover font-medium transition-colors"
+            >
               Sign in
             </Link>
           </p>

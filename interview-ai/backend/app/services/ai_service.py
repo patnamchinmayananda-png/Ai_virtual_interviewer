@@ -239,7 +239,37 @@ class AIService:
         self.gemini_key = os.getenv("GEMINI_API_KEY", "")
         self.debug_mode = os.getenv("DEBUG", "true").lower() == "true"
 
-    def _get_mock_question(self, config: InterviewConfig, asked_questions: List[str]) -> str:
+    def _get_mock_question(self, session: InterviewSession) -> str:
+        config = session.config
+        asked_questions = session.questions
+        answers = session.answers
+        
+        # Adaptive follow-up simulation
+        if asked_questions and answers:
+            last_q = asked_questions[-1]
+            last_a = answers[-1].get("answer_text", "") if isinstance(answers[-1], dict) else getattr(answers[-1], "answer_text", "")
+            
+            # Check for keyword triggers in the candidate's last response
+            last_a_lower = last_a.lower()
+            if "useeffect" in last_a_lower:
+                return "You mentioned using useEffect. Can you explain common dependency array mistakes and how to prevent memory leaks in React?"
+            elif "index" in last_a_lower or "db" in last_a_lower or "database" in last_a_lower:
+                return "Following up on database optimization: Can you explain the difference between a clustered and non-clustered index, and how you select which columns to index?"
+            elif "api" in last_a_lower or "rest" in last_a_lower:
+                return "You referenced REST APIs. Can you explain how you design and manage API versioning, and handle backward compatibility for older clients?"
+            elif "list" in last_a_lower or "tuple" in last_a_lower:
+                return "You mentioned Python lists and tuples. Can you describe how Python manages memory allocation differently for mutable vs immutable sequences?"
+            elif "load balancer" in last_a_lower or "scale" in last_a_lower:
+                return "You mentioned load balancing and scaling. How would you handle sticky sessions or maintain consistent cache hydration across horizontal servers?"
+            elif "concurrency" in last_a_lower or "thread" in last_a_lower:
+                return "You mentioned thread concurrency. Can you explain what a race condition is and how you prevent it using mutual exclusion locks or semaphores?"
+            elif "docker" in last_a_lower:
+                return "You mentioned containerizing with Docker. How do you manage secrets or sensitive configuration values inside a production Docker environment securely?"
+            elif "aws" in last_a_lower or "gcp" in last_a_lower or "cloud" in last_a_lower:
+                return "You mentioned cloud environments. Can you explain the architectural trade-offs between deploying across multiple Availability Zones vs multiple regions?"
+            elif "rag" in last_a_lower or "vector" in last_a_lower:
+                return "Following up on your RAG pipeline experience: How do you choose your chunking strategies, and how do you mitigate model hallucinations during the generation step?"
+
         role = config.job_role.value if hasattr(config.job_role, "value") else str(config.job_role)
         itype = config.interview_type.value if hasattr(config.interview_type, "value") else str(config.interview_type)
         difficulty = config.difficulty.value if hasattr(config.difficulty, "value") else str(config.difficulty)
@@ -247,7 +277,15 @@ class AIService:
         # Standardize matching keys
         role_key = "software_engineer" if "software" in role or "backend" in role or "frontend" in role else "ai_engineer"
         type_key = itype if itype in ["technical", "system_design", "behavioral", "hr"] else "technical"
-        diff_key = difficulty if difficulty in ["beginner", "intermediate", "advanced"] else "intermediate"
+        diff_key = difficulty if difficulty in ["beginner", "intermediate", "advanced", "fresher", "sde_1", "sde_2"] else "intermediate"
+        
+        # Map SDE tiers to mock banks
+        if diff_key in ["fresher", "beginner"]:
+            diff_bank = "beginner"
+        elif diff_key in ["sde_1", "intermediate"]:
+            diff_bank = "intermediate"
+        else:
+            diff_bank = "advanced"
 
         # Check for resume text to build tailored questions offline
         resume = getattr(config, "resume_text", None)
@@ -306,7 +344,7 @@ class AIService:
         type_bank = role_bank.get(type_key, FALLBACK_QUESTIONS[type_key])
         
         if isinstance(type_bank, dict):
-            q_list = type_bank.get(diff_key, type_bank.get("intermediate", []))
+            q_list = type_bank.get(diff_bank, type_bank.get("intermediate", []))
         else:
             q_list = type_bank
 
@@ -343,7 +381,7 @@ class AIService:
                 logger.error(f"OpenAI question generation failed: {e}. Falling back to Mock.")
 
         # High-fidelity mock question selection
-        return self._get_mock_question(session.config, session.questions)
+        return self._get_mock_question(session)
 
     async def evaluate_answer(self, session: InterviewSession, question_text: str, answer_text: str) -> Dict:
         """
@@ -381,6 +419,7 @@ class AIService:
         word_count = len(answer_text.split())
         
         # Calculate base scores based on answer length & substance
+        # Calculate base scores based on answer length & substance
         if word_count < 10:
             tech_base = random.uniform(3.0, 4.5)
             comm_base = random.uniform(2.5, 4.0)
@@ -391,6 +430,8 @@ class AIService:
                 "Structure your responses using the STAR method (Situation, Task, Action, Result).",
                 "Explain the 'why' behind your technical decisions."
             ]
+            strengths = ["Responded directly and quickly to the prompt."]
+            weaknesses = ["Lacks detailed technical terms.", "Very brief answer length."]
         elif word_count < 40:
             tech_base = random.uniform(5.5, 7.0)
             comm_base = random.uniform(5.0, 6.8)
@@ -401,6 +442,8 @@ class AIService:
                 "Be more specific about trade-offs (e.g., performance impact, complexity).",
                 "Reduce hesitation and filler words to present more authoritatively."
             ]
+            strengths = ["Identified core terminology correctly.", "Clear logical delivery."]
+            weaknesses = ["Failed to explain scaling limitations.", "Lacked concrete system execution details."]
         else:
             tech_base = random.uniform(7.5, 9.2)
             comm_base = random.uniform(7.2, 9.0)
@@ -410,6 +453,8 @@ class AIService:
                 "Discuss scaling limits or highly advanced edge cases.",
                 "Structure the opening summary even more concisely before diving into details."
             ]
+            strengths = ["Outstanding technical depth and clarity.", "Exemplary structure with specific examples."]
+            weaknesses = ["Could expand slightly on cloud scaling details or microservice decoupling."]
 
         # Penalize confidence score if there are excessive filler words
         if filler_count > 5:
@@ -428,6 +473,8 @@ class AIService:
             "confidence_score": conf_score,
             "overall_score": overall_score,
             "feedback": feedback,
+            "strengths": strengths,
+            "weaknesses": weaknesses,
             "improvements": improvements,
             "filler_word_count": filler_count
         }
@@ -445,7 +492,8 @@ class AIService:
                 "strengths": ["Dynamic communication style."],
                 "weaknesses": ["Insufficient technical detail provided."],
                 "improvements": ["Elaborate on technical concepts during future practices."],
-                "learning_resources": []
+                "learning_resources": [],
+                "roadmap": []
             }
 
         # Calculate averages from answers
@@ -471,7 +519,8 @@ class AIService:
         else:
             weaknesses.append("Superficial explanations of architectural limits or system edge cases.")
             improvements.append("Deepen your understanding of core data structures, system trade-offs, and algorithms.")
-            resources.append({"title": "System Design Primer", "url": "https://github.com/donnemartin/system-design-primer"})
+            resources.append({"title": "System Design Primer", "url": "https://github.com/donnemartin/system-design-primer", "type": "GitHub"})
+            resources.append({"title": "Grokking the System Design Interview", "url": "https://www.designgurus.io/", "type": "Course"})
 
         # Analyze communication
         if avg_comm >= 7.5:
@@ -479,7 +528,7 @@ class AIService:
         else:
             weaknesses.append("Difficulty delivering structured, high-level answers quickly under constraints.")
             improvements.append("Practice summarizing your answer in 2-3 high-level points before explaining specific details.")
-            resources.append({"title": "STAR Interview Strategy Guide", "url": "https://www.indeed.com/career-advice/interviewing/star-method-interview"})
+            resources.append({"title": "STAR Interview Strategy Guide", "url": "https://www.indeed.com/career-advice/interviewing/star-method-interview", "type": "Guide"})
 
         # Analyze confidence / filler words
         total_filler = sum([a.get("filler_word_count", 0) for a in answers])
@@ -488,7 +537,7 @@ class AIService:
         else:
             weaknesses.append("Frequent reliance on filler words ('um', 'like', 'you know') when thinking.")
             improvements.append("Embrace silent pauses when organizing your thoughts instead of vocalizing filler words.")
-            resources.append({"title": "How to Stop Saying 'Um' and 'Like'", "url": "https://hbr.org/2018/08/how-to-stop-saying-um-and-like"})
+            resources.append({"title": "How to Stop Saying 'Um' and 'Like'", "url": "https://hbr.org/2018/08/how-to-stop-saying-um-and-like", "type": "Article"})
 
         # Always ensure we have some values
         if not strengths:
@@ -496,6 +545,44 @@ class AIService:
         if not weaknesses:
             weaknesses.append("None detected. Minor opportunities exist in perfecting deployment pipelines detail.")
             improvements.append("Perfect technical details around cloud containerization and edge caching.")
+
+        # Compile dynamic 7-Day Roadmap based on weaknesses
+        roadmap = []
+        is_tech_weak = avg_tech < 7.5
+        is_comm_weak = avg_comm < 7.5
+        is_conf_weak = total_filler >= len(answers) * 2
+
+        if is_tech_weak:
+            roadmap = [
+                {"day": 1, "topic": "Core Architecture Review", "activities": ["Review horizontal scaling", "Study database indexing strategies"]},
+                {"day": 2, "topic": "Data Structures & Algorithms", "activities": ["Implement Hash Map collision resolutions", "Solve 2 array/string LeetCode questions"]},
+                {"day": 3, "topic": "System Design Decoupling", "activities": ["Study Distributed Message Queues (Kafka)", "Design Bit.ly URL shortener"]},
+                {"day": 4, "topic": "API Design Guidelines", "activities": ["Learn REST conventions and rate-limiting patterns", "Understand API backward compatibility strategies"]},
+                {"day": 5, "topic": "Cloud & Containerization", "activities": ["Write clean Dockerfiles", "Study multi-AZ active failover systems"]},
+                {"day": 6, "topic": "Mock Interview Validation", "activities": ["Complete SDE 1 Technical Mock Session"]},
+                {"day": 7, "topic": "Final Knowledge Assessment", "activities": ["Take 15-minute quick-fire architecture assessment"]}
+            ]
+        elif is_comm_weak or is_conf_weak:
+            roadmap = [
+                {"day": 1, "topic": "STAR Method Fundamentals", "activities": ["Draft 3 stories for behavioral questions", "Structure using Situation, Task, Action, Result"]},
+                {"day": 2, "topic": "Confidence & Vocal Pacing", "activities": ["Record yourself speaking for 2 minutes", "Identify and eliminate vocal pauses (um, like)"]},
+                {"day": 3, "topic": "High-Level Opening Summaries", "activities": ["Practice explaining technical projects in under 60 seconds", "Lead with outcome metrics"]},
+                {"day": 4, "topic": "Behavioral STAR Scenarios", "activities": ["Draft disagreement resolution story", "Draft production bug post-mortem story"]},
+                {"day": 5, "topic": "Hands-Free Speaking Mock", "activities": ["Complete Behavioral Mock Interview with auto-listen active"]},
+                {"day": 6, "topic": "Vocal Modulation Practice", "activities": ["Review recorded transcripts", "Eliminate double-starts and hedges"]},
+                {"day": 7, "topic": "Final Behavioral Assessment", "activities": ["Re-run HR cultural mock session"]}
+            ]
+        else:
+            # Default premium roadmap for high scorers
+            roadmap = [
+                {"day": 1, "topic": "Advanced Scalability", "activities": ["Study OT vs CRDT collaborative editing systems", "Learn partition replication consensus models"]},
+                {"day": 2, "topic": "Production Pipeline Security", "activities": ["Review OAuth 2.0 flows", "Examine JWT secret rotations"]},
+                {"day": 3, "topic": "GPU Inference Optimization", "activities": ["Study LLM Quantization and dynamic caching", "Profile model GPU leaks"]},
+                {"day": 4, "topic": "System Resiliency Mock", "activities": ["Complete SDE 2 Advanced System Design Mock"]},
+                {"day": 5, "topic": "Cross-Functional Leadership", "activities": ["Prepare stories on mentoring junior developers", "Draft engineering KPI alignment examples"]},
+                {"day": 6, "topic": "Mock Interview Challenge", "activities": ["Complete Advanced Technical Session"]},
+                {"day": 7, "topic": "Final Expert Assessment", "activities": ["Final Review of system bottlenecks"]}
+            ]
 
         return {
             "overall_score": avg_overall,
@@ -505,7 +592,8 @@ class AIService:
             "strengths": strengths,
             "weaknesses": weaknesses,
             "improvements": improvements,
-            "learning_resources": resources
+            "learning_resources": resources,
+            "roadmap": roadmap
         }
 
     # --- Live API Integration Implementations ---
@@ -561,8 +649,20 @@ class AIService:
                 f"Verify their technical claims, probe details of their listed projects, and reference their background in your questioning."
             )
 
+        conversational_prompt = ""
+        if session.answers:
+            last_answer = session.answers[-1]
+            conversational_prompt = (
+                f"\nCANDIDATE'S PREVIOUS ANSWER:\n"
+                f"Question: \"{history[-1]}\"\n"
+                f"Answer: \"{last_answer.get('answer_text', '')}\"\n\n"
+                f"CRITICAL: The interview should feel conversational. Review the candidate's previous answer above. "
+                f"If appropriate, ask a follow-up question probing a concept they mentioned (e.g. if they mentioned 'useEffect', ask about dependency arrays) or follow up on a technical gap or claim. "
+                f"Otherwise, proceed to the next relevant topic for the '{role}' role at '{difficulty}' difficulty."
+            )
+
         prompt = (
-            f"You are conducting a professional mock interview for a '{role}' role.{resume_prompt}\n"
+            f"You are conducting a professional mock interview for a '{role}' role.{resume_prompt}{conversational_prompt}\n"
             f"Interview Type: {itype}\n"
             f"Current Difficulty Level: {difficulty}\n"
             f"Previously asked questions in this session: {json.dumps(history)}\n\n"
@@ -636,6 +736,8 @@ class AIService:
             f"  \"confidence_score\": float, # Score out of 10.0 (assertiveness, lack of hesitation. Penalize if filler count is high)\n"
             f"  \"overall_score\": float, # Mathematical average of the three scores\n"
             f"  \"feedback\": string, # Brief qualitative feedback summary\n"
+            f"  \"strengths\": [string], # 1-2 specific strengths found in this specific answer\n"
+            f"  \"weaknesses\": [string], # 1-2 specific weaknesses/gaps found in this specific answer\n"
             f"  \"improvements\": [string] # 2-3 specific actionable bullet points to improve\n"
             f"}}\n\n"
             f"Ensure to return ONLY the raw JSON object. Do not include markdown wraps."
@@ -807,4 +909,106 @@ class AIService:
             "weaknesses": weaknesses[:3],
             "improvements": improvements[:3],
             "compatibility": compatibility
+        }
+
+    def extract_resume_details(self, resume_text: str) -> dict:
+        """
+        Extracts specific Skills, Technologies, Projects, Experience, and Education
+        from the resume text.
+        """
+        if not resume_text:
+            return {
+                "skills": [],
+                "technologies": [],
+                "projects": [],
+                "experience": [],
+                "education": []
+            }
+        
+        # Define keywords
+        skills_list = ["React", "Node.js", "Python", "JavaScript", "TypeScript", "HTML", "CSS", "Java", "Go", "C++", "Ruby", "Swift", "Rust"]
+        tech_list = ["Docker", "AWS", "Kubernetes", "Redis", "PostgreSQL", "MongoDB", "FastAPI", "Express", "Django", "Flask", "GCP", "Git", "GitHub Actions", "Terraform", "CI/CD"]
+        
+        # Skills detection
+        detected_skills = []
+        for s in skills_list:
+            if re.search(r'\b' + re.escape(s) + r'\b', resume_text, re.IGNORECASE):
+                detected_skills.append(s)
+                
+        # Technologies detection
+        detected_tech = []
+        for t in tech_list:
+            if re.search(r'\b' + re.escape(t) + r'\b', resume_text, re.IGNORECASE):
+                detected_tech.append(t)
+                
+        # Projects detection
+        projects = []
+        project_matches = re.finditer(r'\bProject\s*(?:Name)?\s*:\s*([^\n\r]+)', resume_text, re.IGNORECASE)
+        for m in project_matches:
+            proj = m.group(1).strip()
+            if proj and len(proj) < 50:
+                projects.append(proj)
+                
+        # Fallback/additional project parsing: Look for built/developed achievements
+        matches = re.finditer(r'\b(developed|built|designed|implemented|created|engineered)\s+([a-zA-Z0-9\s\-\_]{8,35})', resume_text, re.IGNORECASE)
+        for m in matches:
+            proj = m.group(2).strip()
+            words = proj.split()
+            if len(words) >= 2 and not any(w.lower() in ["the", "a", "an", "and", "their", "our", "my", "new"] for w in words[:1]):
+                proj_title = " ".join([w.capitalize() for w in words[:3]])
+                if proj_title not in projects:
+                    projects.append(proj_title)
+                    
+        if not projects:
+            projects = ["AI Virtual Interviewer", "Portfolio Website"]
+        else:
+            projects = list(dict.fromkeys(projects))[:4]
+            
+        # Experience detection
+        experience = []
+        job_titles = ["Software Engineer", "Developer", "Analyst", "Intern", "Manager", "Architect", "Lead", "Programmer"]
+        for title in job_titles:
+            matches = re.finditer(r'([^\n\r]*' + re.escape(title) + r'[^\n\r]*)', resume_text, re.IGNORECASE)
+            for m in matches:
+                line = m.group(1).strip()
+                if len(line) > 10 and len(line) < 100:
+                    line = re.sub(r'\s+', ' ', line)
+                    if line not in experience:
+                        experience.append(line)
+                        
+        date_matches = re.finditer(r'([^\n\r]*(?:19|20)\d{2}\s*[-–]\s*(?:(?:19|20)\d{2}|Present|current)[^\n\r]*)', resume_text, re.IGNORECASE)
+        for m in date_matches:
+            line = m.group(1).strip()
+            if len(line) > 10 and len(line) < 100 and line not in experience:
+                line = re.sub(r'\s+', ' ', line)
+                experience.append(line)
+                
+        if not experience:
+            experience = ["Software Engineer Intern", "Freelance Developer"]
+        else:
+            experience = list(dict.fromkeys(experience))[:3]
+            
+        # Education detection
+        education = []
+        edu_keywords = ["Bachelor", "Master", "Ph.D", "B.S", "B.Tech", "M.S", "M.Tech", "Degree", "University", "College", "School"]
+        for keyword in edu_keywords:
+            matches = re.finditer(r'([^\n\r]*' + re.escape(keyword) + r'[^\n\r]*)', resume_text, re.IGNORECASE)
+            for m in matches:
+                line = m.group(1).strip()
+                if len(line) > 8 and len(line) < 100:
+                    line = re.sub(r'\s+', ' ', line)
+                    if line not in education:
+                        education.append(line)
+                        
+        if not education:
+            education = ["Bachelor of Science in Computer Science"]
+        else:
+            education = list(dict.fromkeys(education))[:3]
+            
+        return {
+            "skills": detected_skills[:5],
+            "technologies": detected_tech[:5],
+            "projects": projects,
+            "experience": experience,
+            "education": education
         }

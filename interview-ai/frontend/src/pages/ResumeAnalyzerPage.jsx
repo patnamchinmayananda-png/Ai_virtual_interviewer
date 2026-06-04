@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText, CheckCircle2, AlertTriangle, TrendingUp, RefreshCw, Target,
@@ -12,12 +12,13 @@ import { useInterview } from '../context/InterviewContext';
 const SIDEBAR_LINKS = [
   { icon: LayoutDashboard, label: 'Dashboard', to: '/dashboard' },
   { icon: Play, label: 'New Interview', to: '/interview-setup' },
-  { icon: BarChart2, label: 'Resume Analyzer', to: '/resume-analyzer', active: true },
+  { icon: BarChart2, label: 'Resume Analyzer', to: '/resume-analyzer' },
   { icon: User, label: 'Profile', to: '/profile' },
 ];
 
 export default function ResumeAnalyzerPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout, getProfile } = useAuth();
   const { analyzeResume } = useInterview();
   const [profile, setProfile] = useState(null);
@@ -132,48 +133,51 @@ export default function ResumeAnalyzerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex">
+    <div className="min-h-screen bg-background text-text-primary flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col py-6 px-4 fixed h-full z-20">
-        <Link to="/" className="flex items-center gap-2 mb-10 px-2">
-          <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <Brain size={20} />
+      <aside className="w-64 bg-surface border-r border-border flex flex-col py-6 px-4 fixed h-full z-20">
+        <Link to="/" className="flex items-center gap-2.5 mb-10 px-2">
+          <div className="w-8 h-8 rounded-lg border border-border bg-surface-secondary flex items-center justify-center text-primary">
+            <Brain size={18} />
           </div>
-          <span className="text-lg font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <span className="text-base font-bold text-text-primary tracking-tight">
             InterviewAI
           </span>
         </Link>
 
         <nav className="flex-1 space-y-1">
-          {SIDEBAR_LINKS.map(({ icon: Icon, label, to, active }) => (
-            <Link
-              key={label}
-              to={to}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm font-medium ${
-                active 
-                  ? 'bg-blue-600/10 border border-blue-500/20 text-white font-semibold' 
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Icon size={18} className={active ? 'text-blue-400' : 'text-slate-400'} />
-              {label}
-            </Link>
-          ))}
+          {SIDEBAR_LINKS.map(({ icon: Icon, label, to }) => {
+            const isActive = location.pathname === to;
+            return (
+              <Link
+                key={label}
+                to={to}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm font-medium border ${
+                  isActive
+                    ? 'bg-surface-secondary border-border text-text-primary'
+                    : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-surface-secondary/50'
+                }`}
+              >
+                <Icon size={16} />
+                {label}
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="border-t border-slate-800 pt-4 mt-4">
-          <div className="flex items-center gap-3 px-3 mb-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-sm font-bold">
+        <div className="border-t border-border pt-4 mt-4">
+          <div className="flex items-center gap-3 px-3 mb-4">
+            <div className="w-8 h-8 bg-surface-secondary border border-border rounded-full flex items-center justify-center text-sm font-bold text-text-primary font-mono">
               {displayName[0]?.toUpperCase()}
             </div>
-            <div>
-              <p className="text-sm font-medium text-white truncate">{displayName}</p>
-              <p className="text-xs text-slate-500 truncate">{profile?.email || user?.email}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-text-primary truncate">{displayName}</p>
+              <p className="text-xs text-text-muted truncate">{profile?.email || user?.email}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all w-full text-sm"
+            className="flex items-center gap-2.5 px-3 py-2 text-text-secondary hover:text-danger hover:bg-danger/10 border border-transparent hover:border-danger/20 rounded-lg transition-all w-full text-sm font-medium"
           >
             <LogOut size={16} />
             Sign Out
@@ -182,30 +186,26 @@ export default function ResumeAnalyzerPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="ml-64 flex-1 p-8">
+      <main className="ml-64 flex-1 p-8 min-w-0">
         
         {/* Header HUD */}
-        <motion.div
-          className="mb-8 flex items-center justify-between"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex items-center gap-2">
-              <Sparkles className="text-blue-400 animate-pulse-slow" size={28} /> Dedicated Resume Analyzer
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
+              <Sparkles className="text-primary" size={24} /> Resume Analyzer
             </h1>
-            <p className="text-slate-400 mt-1 text-sm">Upload your resume to perform instant ATS grading, skill categorisation, and career alignment checking.</p>
+            <p className="text-text-secondary mt-1 text-sm">Upload your resume to perform instant ATS grading, skill categorisation, and career alignment checking.</p>
           </div>
 
           {analysisResult && (
             <button
               onClick={clearFile}
-              className="px-4 py-2 border border-slate-850 hover:border-slate-700 bg-slate-900 rounded-xl text-xs font-semibold text-slate-300 hover:text-white transition-all flex items-center gap-2"
+              className="btn-secondary py-2 px-4 text-xs flex items-center gap-2 font-semibold"
             >
               <RefreshCw size={13} /> Analyze New Resume
             </button>
           )}
-        </motion.div>
+        </div>
 
         {/* Dynamic state container */}
         <AnimatePresence mode="wait">
@@ -214,16 +214,16 @@ export default function ResumeAnalyzerPage() {
           {!file && !analysisResult && (
             <motion.div
               key="dropzone"
-              className="w-full max-w-4xl mx-auto"
+              className="w-full max-w-xl mx-auto"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
               <div
-                className={`border-2 border-dashed rounded-3xl p-14 text-center cursor-pointer transition-all relative overflow-hidden flex flex-col items-center justify-center min-h-[360px] ${
+                className={`border border-dashed rounded-xl p-10 text-center cursor-pointer transition-all relative overflow-hidden flex flex-col items-center justify-center min-h-[300px] ${
                   dragActive 
-                    ? 'border-blue-500 bg-blue-500/5 shadow-glow shadow-blue-500/10' 
-                    : 'border-slate-800 bg-slate-900/40 hover:border-slate-700 hover:bg-slate-900/60'
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-border bg-surface hover:border-text-muted/40 hover:bg-surface-secondary/20'
                 }`}
                 onDragEnter={handleDrag}
                 onDragOver={handleDrag}
@@ -231,8 +231,6 @@ export default function ResumeAnalyzerPage() {
                 onDrop={handleDrop}
                 onClick={triggerFileInput}
               >
-                <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none opacity-50" />
-
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -241,25 +239,25 @@ export default function ResumeAnalyzerPage() {
                   accept=".pdf,.txt"
                 />
 
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-500/10 to-purple-600/10 border border-blue-500/20 flex items-center justify-center mb-6 shadow-2xl animate-float">
-                  <FileText className="text-blue-400" size={32} />
+                <div className="w-12 h-12 rounded-xl border border-border bg-surface-secondary flex items-center justify-center mb-5 text-primary animate-float">
+                  <FileText size={22} />
                 </div>
 
-                <h3 className="text-xl font-bold text-slate-100 mb-2">Drag and drop your resume</h3>
-                <p className="text-slate-400 text-sm mb-6 max-w-md leading-relaxed">
-                  Support formats: <strong className="text-slate-200">PDF</strong> or <strong className="text-slate-200">TXT</strong>. Ensure the file contains vector text layers (not a scanned image).
+                <h3 className="text-base font-semibold text-text-primary mb-1">Drag and drop your resume</h3>
+                <p className="text-text-secondary text-xs mb-6 max-w-sm leading-relaxed">
+                  Supported formats: <strong className="text-text-primary font-medium">PDF</strong> or <strong className="text-text-primary font-medium">TXT</strong>. Ensure the file contains vector text layers (not a scanned image).
                 </p>
 
                 <button
                   type="button"
-                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl text-xs font-bold hover:shadow-glow hover:shadow-blue-500/30 transition-all transform hover:-translate-y-0.5"
+                  className="btn-primary py-2.5 px-6 text-xs font-semibold"
                 >
                   Browse Files
                 </button>
 
                 {error && (
                   <motion.div
-                    className="mt-6 flex items-center gap-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl max-w-md"
+                    className="mt-6 flex items-center gap-2 text-xs text-danger bg-danger/10 border border-danger/25 px-4 py-2.5 rounded-lg max-w-md text-left"
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                   >
@@ -275,29 +273,26 @@ export default function ResumeAnalyzerPage() {
           {uploading && (
             <motion.div
               key="loader"
-              className="w-full max-w-xl mx-auto py-16 flex flex-col items-center justify-center text-center"
+              className="w-full max-w-md mx-auto py-16 flex flex-col items-center justify-center text-center"
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
             >
-              <div className="relative flex items-center justify-center mb-8">
-                <div className="w-24 h-24 rounded-full border-4 border-slate-800 border-t-blue-500 animate-spin" />
-                <Brain className="absolute text-blue-400 animate-pulse" size={32} />
-              </div>
+              <div className="w-12 h-12 rounded-full border-2 border-border border-t-primary animate-spin mb-6" />
 
-              <h3 className="text-lg font-bold text-slate-200 mb-2">Analyzing Resume</h3>
-              <p className="text-xs text-blue-400 font-semibold tracking-wider uppercase mb-5 animate-pulse">
+              <h3 className="text-sm font-semibold text-text-primary mb-1">Analyzing Resume</h3>
+              <p className="text-xs text-primary font-mono tracking-wider uppercase mb-5">
                 {uploadStage}
               </p>
 
-              <div className="w-full bg-slate-900 border border-slate-800 h-2 rounded-full overflow-hidden mb-2">
+              <div className="w-full bg-surface border border-border h-2 rounded-full overflow-hidden mb-2">
                 <motion.div
-                  className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
+                  className="h-full bg-primary"
                   animate={{ width: `${uploadProgress}%` }}
                   transition={{ duration: 0.3 }}
                 />
               </div>
-              <span className="text-[10px] text-slate-500 font-semibold">{uploadProgress}% complete</span>
+              <span className="text-[10px] text-text-muted font-semibold font-mono">{uploadProgress}% complete</span>
             </motion.div>
           )}
 
@@ -305,35 +300,33 @@ export default function ResumeAnalyzerPage() {
           {file && error && !uploading && !analysisResult && (
             <motion.div
               key="error-view"
-              className="w-full max-w-xl mx-auto py-12"
+              className="w-full max-w-md mx-auto py-12"
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
             >
-              <div className="backdrop-blur-md bg-slate-900/60 border border-red-500/25 rounded-3xl p-10 text-center shadow-2xl relative overflow-hidden flex flex-col items-center justify-center">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-rose-600 to-amber-500" />
-                
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-red-500/10 to-rose-600/10 border border-red-500/20 flex items-center justify-center mb-6 shadow-2xl animate-float">
-                  <ShieldAlert className="text-red-400" size={32} />
+              <div className="bg-surface border border-danger/25 rounded-xl p-8 text-center shadow-md relative overflow-hidden flex flex-col items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-danger/10 border border-danger/20 flex items-center justify-center mb-4 text-danger animate-float">
+                  <ShieldAlert size={22} />
                 </div>
 
-                <h3 className="text-xl font-bold text-slate-100 mb-2">Analysis Failed</h3>
-                <p className="text-slate-400 text-sm mb-8 max-w-md leading-relaxed">
+                <h3 className="text-base font-semibold text-text-primary mb-1">Analysis Failed</h3>
+                <p className="text-text-secondary text-xs mb-8 max-w-sm leading-relaxed">
                   {error}
                 </p>
 
-                <div className="flex gap-4">
+                <div className="flex gap-3 w-full">
                   <button
                     onClick={clearFile}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:shadow-glow hover:shadow-blue-500/30 rounded-xl text-xs font-bold transition-all transform hover:-translate-y-0.5"
+                    className="btn-primary py-2 px-4 text-xs font-semibold flex-1"
                   >
                     Upload Another File
                   </button>
                   <Link
                     to="/dashboard"
-                    className="px-6 py-3 border border-slate-800 hover:border-slate-700 bg-slate-900/60 rounded-xl text-xs font-bold text-slate-350 hover:text-white transition-all transform hover:-translate-y-0.5 flex items-center gap-1.5"
+                    className="btn-secondary py-2 px-4 text-xs font-semibold flex items-center justify-center gap-1.5 flex-1"
                   >
-                    <LayoutDashboard size={14} /> Go to Dashboard
+                    <LayoutDashboard size={14} /> Dashboard
                   </Link>
                 </div>
               </div>
@@ -344,64 +337,62 @@ export default function ResumeAnalyzerPage() {
           {analysisResult && (
             <motion.div
               key="report"
-              className="grid lg:grid-cols-3 gap-8 items-start"
-              initial={{ opacity: 0, y: 15 }}
+              className="grid lg:grid-cols-3 gap-6 items-start"
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
             >
               
               {/* Left Column: Radial score dial, Role compatibility, Details */}
-              <div className="space-y-8 lg:col-span-1">
+              <div className="space-y-6 lg:col-span-1">
                 
                 {/* 1. circular Radial dial */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 flex flex-col items-center text-center backdrop-blur shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-600 to-pink-500" />
+                <div className="bg-surface border border-border rounded-xl p-6 flex flex-col items-center text-center relative overflow-hidden">
+                  <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-6">ATS Compatibility Rating</span>
                   
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">ATS Compatibility Rating</span>
-                  
-                  <div className="relative w-44 h-44 flex items-center justify-center mb-4">
+                  <div className="relative w-36 h-36 flex items-center justify-center mb-4">
                     {/* SVG Gauge */}
                     <svg className="w-full h-full transform -rotate-90">
                       <circle
-                        cx="88"
-                        cy="88"
-                        r="72"
-                        className="stroke-slate-800"
+                        cx="72"
+                        cy="72"
+                        r="60"
+                        stroke="#18181B"
                         strokeWidth="8"
                         fill="transparent"
                       />
                       <motion.circle
-                        cx="88"
-                        cy="88"
-                        r="72"
-                        className="stroke-blue-500"
+                        cx="72"
+                        cy="72"
+                        r="60"
+                        stroke="#5E6AD2"
                         strokeWidth="8"
                         fill="transparent"
-                        strokeDasharray={2 * Math.PI * 72}
-                        initial={{ strokeDashoffset: 2 * Math.PI * 72 }}
-                        animate={{ strokeDashoffset: 2 * Math.PI * 72 * (1 - analysisResult.score / 100) }}
+                        strokeDasharray={2 * Math.PI * 60}
+                        initial={{ strokeDashoffset: 2 * Math.PI * 60 }}
+                        animate={{ strokeDashoffset: 2 * Math.PI * 60 * (1 - analysisResult.score / 100) }}
                         transition={{ duration: 1.5, ease: "easeOut" }}
                       />
                     </svg>
                     
                     <div className="absolute flex flex-col items-center">
-                      <span className="text-4xl font-extrabold text-white font-mono tracking-tighter">
+                      <span className="text-3xl font-bold text-text-primary font-mono tracking-tight">
                         {analysisResult.score}%
                       </span>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                        {analysisResult.score >= 85 ? 'Excellent' : analysisResult.score >= 70 ? 'Good' : 'Needs Optimization'}
+                      <span className="text-[9px] text-text-secondary font-bold uppercase tracking-wider mt-0.5">
+                        {analysisResult.score >= 85 ? 'Excellent' : analysisResult.score >= 70 ? 'Good' : 'Needs Work'}
                       </span>
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-400 px-4 leading-relaxed mt-2">
-                    Our scanner extracted <strong className="text-slate-200">{analysisResult.achievements.length}</strong> accomplishments and categorized skills into categories to compute this score.
+                  <p className="text-xs text-text-secondary px-2 leading-relaxed mt-2">
+                    Our scanner extracted <strong className="text-text-primary font-medium">{analysisResult.achievements.length}</strong> accomplishments and analyzed skill patterns to compute this compatibility rating.
                   </p>
                 </div>
 
                 {/* 2. Job compatibility Match */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 backdrop-blur shadow-2xl">
-                  <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2 border-b border-slate-800 pb-3">
-                    <Target size={16} className="text-purple-400" /> Target Job Alignment
+                <div className="bg-surface border border-border rounded-xl p-6">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-4 flex items-center gap-2 border-b border-border pb-3">
+                    <Target size={14} className="text-primary" /> Target Job Alignment
                   </h3>
 
                   <div className="space-y-4">
@@ -409,20 +400,20 @@ export default function ResumeAnalyzerPage() {
                       const displayRole = role.replace(/_/g, ' ');
                       return (
                         <div key={role}>
-                          <div className="flex justify-between text-xs mb-1.5 font-medium">
-                            <span className="capitalize text-slate-300">{displayRole}</span>
-                            <span className={pct >= 80 ? 'text-green-400 font-bold' : pct >= 65 ? 'text-yellow-400 font-bold' : 'text-slate-500'}>
+                          <div className="flex justify-between text-xs mb-1.5">
+                            <span className="capitalize text-text-secondary font-medium">{displayRole}</span>
+                            <span className={`font-mono font-bold ${pct >= 80 ? 'text-success' : pct >= 65 ? 'text-warning' : 'text-text-muted'}`}>
                               {pct}% Match
                             </span>
                           </div>
-                          <div className="w-full bg-slate-950 border border-slate-850 h-2 rounded-full overflow-hidden">
+                          <div className="w-full bg-surface-secondary border border-border h-1.5 rounded-full overflow-hidden">
                             <motion.div
                               className={`h-full ${
                                 pct >= 80 
-                                  ? 'bg-gradient-to-r from-green-500 to-emerald-400' 
+                                  ? 'bg-success' 
                                   : pct >= 65 
-                                    ? 'bg-gradient-to-r from-yellow-500 to-amber-400' 
-                                    : 'bg-gradient-to-r from-blue-500 to-purple-600'
+                                    ? 'bg-warning' 
+                                    : 'bg-primary'
                               }`}
                               initial={{ width: 0 }}
                               animate={{ width: `${pct}%` }}
@@ -436,18 +427,16 @@ export default function ResumeAnalyzerPage() {
                 </div>
 
                 {/* 3. Start Tailored Mock CTA */}
-                <div className="bg-gradient-to-br from-blue-600/10 to-purple-700/10 border border-blue-500/20 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/5 to-transparent pointer-events-none" />
-                  
-                  <Sparkles size={24} className="text-blue-400 mb-3" />
-                  <h3 className="font-bold text-base mb-1 text-white">Practice Mock Interview</h3>
-                  <p className="text-slate-400 text-xs leading-relaxed mb-4">
+                <div className="bg-surface border border-primary/20 rounded-xl p-6">
+                  <Sparkles size={20} className="text-primary mb-3" />
+                  <h3 className="font-semibold text-sm mb-1 text-text-primary">Practice Mock Interview</h3>
+                  <p className="text-text-secondary text-xs leading-relaxed mb-4">
                     Ready to verify your skills? Start an immersive voice mock interview tailored specifically to this resume!
                   </p>
                   
                   <Link
                     to="/interview-setup"
-                    className="w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:shadow-glow hover:shadow-blue-500/30 text-center block rounded-xl text-xs font-bold transition-all transform hover:-translate-y-0.5"
+                    className="btn-primary w-full py-2.5 text-center block text-xs font-semibold"
                   >
                     Launch Customized Session
                   </Link>
@@ -455,29 +444,29 @@ export default function ResumeAnalyzerPage() {
               </div>
 
               {/* Right Column: Skill categories, timeline achievements, gap audits */}
-              <div className="lg:col-span-2 space-y-8">
+              <div className="lg:col-span-2 space-y-6">
                 
                 {/* 1. Skill Categories Inventory */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 backdrop-blur shadow-2xl">
-                  <h3 className="text-sm font-bold text-slate-200 mb-5 flex items-center gap-2 border-b border-slate-800 pb-3">
-                    <Wrench size={16} className="text-blue-400 animate-pulse-slow" /> Classified Skills Inventory
+                <div className="bg-surface border border-border rounded-xl p-6">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-5 flex items-center gap-2 border-b border-border pb-3">
+                    <Wrench size={14} className="text-primary animate-pulse-slow" /> Classified Skills Inventory
                   </h3>
 
                   {Object.keys(analysisResult.skills).length === 0 ? (
-                    <p className="text-xs text-slate-500 italic text-center py-6">No specific technical skill categories detected.</p>
+                    <p className="text-xs text-text-muted italic text-center py-6">No specific technical skill categories detected.</p>
                   ) : (
-                    <div className="space-y-5">
+                    <div className="space-y-4">
                       {Object.entries(analysisResult.skills).map(([category, tags]) => (
-                        <div key={category} className="bg-slate-950/40 border border-slate-850 p-4 rounded-2xl">
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                        <div key={category} className="bg-surface-secondary/40 border border-border/60 p-4 rounded-xl">
+                          <h4 className="text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                             {category}
                           </h4>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1.5">
                             {tags.map((tag) => (
                               <span
                                 key={tag}
-                                className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-300 font-semibold rounded-lg text-xs tracking-wide shadow-sm"
+                                className="px-2.5 py-1 bg-surface-secondary border border-border text-text-secondary hover:text-text-primary font-medium rounded-lg text-xs transition-colors"
                               >
                                 {tag}
                               </span>
@@ -490,23 +479,23 @@ export default function ResumeAnalyzerPage() {
                 </div>
 
                 {/* 2. extracted Timeline achievements */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 backdrop-blur shadow-2xl">
-                  <h3 className="text-sm font-bold text-slate-200 mb-5 flex items-center gap-2 border-b border-slate-800 pb-3">
-                    <Briefcase size={16} className="text-purple-400" /> Extracted Noun Accomplishments
+                <div className="bg-surface border border-border rounded-xl p-6">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-5 flex items-center gap-2 border-b border-border pb-3">
+                    <Briefcase size={14} className="text-primary" /> Parsed Achievements & Verbs
                   </h3>
 
                   {analysisResult.achievements.length === 0 ? (
-                    <p className="text-xs text-slate-500 italic text-center py-6">No active action-accomplishments parsed. Try adding verbs like "built" or "designed".</p>
+                    <p className="text-xs text-text-muted italic text-center py-6">No active accomplishments parsed. Try adding verbs like "built" or "designed".</p>
                   ) : (
-                    <div className="space-y-4 pl-4 border-l-2 border-slate-850 relative">
+                    <div className="space-y-3.5 pl-4 border-l border-border relative">
                       {analysisResult.achievements.map((item, idx) => (
                         <div key={idx} className="relative group">
                           {/* Circle dot anchor */}
-                          <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 bg-purple-500 rounded-full border-2 border-slate-950 shadow-glow shadow-purple-500/40 group-hover:scale-125 transition-transform" />
-                          
-                          <div className="bg-slate-950/20 border border-slate-850/80 rounded-xl p-3.5 hover:border-slate-700 transition-all">
-                            <p className="text-xs text-slate-300 font-medium leading-relaxed font-mono">
-                              "{item}..."
+                          <div className="absolute -left-[20.5px] top-1.5 w-2 h-2 bg-primary rounded-full border border-background transition-transform" />
+                           
+                          <div className="bg-surface-secondary/40 border border-border rounded-lg p-3 hover:border-text-muted/40 transition-all">
+                            <p className="text-xs text-text-secondary leading-relaxed font-mono">
+                              "{item}"
                             </p>
                           </div>
                         </div>
@@ -518,14 +507,14 @@ export default function ResumeAnalyzerPage() {
                 {/* 3. Strengths vs Gaps audit */}
                 <div className="grid md:grid-cols-2 gap-6">
                   {/* Strengths */}
-                  <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 shadow-2xl">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2 text-green-400">
-                      <CheckCircle2 size={14} /> ATS Strengths
+                  <div className="bg-surface border border-success/20 rounded-xl p-5">
+                    <h4 className="text-[10px] font-bold text-success uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <CheckCircle2 size={13} /> ATS Strengths
                     </h4>
                     <ul className="space-y-3">
                       {analysisResult.strengths.map((str, idx) => (
-                        <li key={idx} className="text-xs text-slate-350 flex items-start gap-2.5 leading-relaxed">
-                          <CheckCircle2 size={13} className="text-green-500 mt-0.5 flex-shrink-0" />
+                        <li key={idx} className="text-xs text-text-secondary flex items-start gap-2.5 leading-relaxed">
+                          <CheckCircle2 size={13} className="text-success mt-0.5 flex-shrink-0" />
                           <span>{str}</span>
                         </li>
                       ))}
@@ -533,14 +522,14 @@ export default function ResumeAnalyzerPage() {
                   </div>
 
                   {/* Recommendations / Improvements */}
-                  <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 shadow-2xl">
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2 text-yellow-400">
-                      <AlertTriangle size={14} /> Gaps & Improvements
+                  <div className="bg-surface border border-warning/20 rounded-xl p-5">
+                    <h4 className="text-[10px] font-bold text-warning uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <AlertTriangle size={13} /> Gaps & Improvements
                     </h4>
                     <ul className="space-y-3">
                       {analysisResult.improvements.map((imp, idx) => (
-                        <li key={idx} className="text-xs text-slate-350 flex items-start gap-2.5 leading-relaxed">
-                          <AlertTriangle size={13} className="text-yellow-500 mt-0.5 flex-shrink-0" />
+                        <li key={idx} className="text-xs text-text-secondary flex items-start gap-2.5 leading-relaxed">
+                          <AlertTriangle size={13} className="text-warning mt-0.5 flex-shrink-0" />
                           <span>{imp}</span>
                         </li>
                       ))}
