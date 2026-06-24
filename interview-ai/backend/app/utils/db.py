@@ -16,8 +16,13 @@ class MongoDictProxy:
         
         if db_url:
             try:
-                # 5-second connection timeout
-                self.client = pymongo.MongoClient(db_url, serverSelectionTimeoutMS=5000)
+                kwargs = {"serverSelectionTimeoutMS": 5000}
+                try:
+                    import certifi
+                    kwargs["tlsCAFile"] = certifi.where()
+                except ImportError:
+                    pass
+                self.client = pymongo.MongoClient(db_url, **kwargs)
                 self.db = self.client[db_name]
                 self.collection = self.db[collection_name]
                 self.client.server_info() # Test connection
